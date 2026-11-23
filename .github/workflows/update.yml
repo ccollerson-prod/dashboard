@@ -35,7 +35,7 @@ jobs:
           cp manifest.json public/manifest.json
           cp sw.js public/sw.js
           python - << 'EOF'
-          import os, json, zlib, struct, requests
+          import os, json, re, zlib, struct, requests
           from datetime import datetime, timedelta, timezone
           from icalendar import Calendar
           import recurring_ical_events
@@ -96,49 +96,32 @@ jobs:
               json.dump({"updated": datetime.now(timezone.utc).isoformat(), "events": events_out}, f)
           print(f"Saved {len(events_out)} calendar events.")
 
-          # 2. Fetch up to 200 image URLs from a public Apple iCloud Shared Album
-          token = os.environ.get("ICLOUD_ALBUM_TOKEN", "").strip()
+          # 2. Fetch up to 200 image URLs from Apple iCloud Shared Album URL / token
+          raw_val = os.environ.get("ICLOUD_ALBUM_TOKEN", "").strip()
           photos = []
-          if token:
-              base_url = f"https://p23-sharedstreams.icloud.com/{token}/sharedstreams"
-              headers = {"Content-Type": "application/json"}
-              stream_resp = requests.post(f"{base_url}/webstream", json={"streamCtag": None}, headers=headers, timeout=30)
-              if stream_resp.status_code == 330 and stream_resp.json().get("X-Apple-MMe-Host"):
-                  host = stream_resp.json()["X-Apple-MMe-Host"]
-                  base_url = f"https://{host}/{token}/sharedstreams"
-                  stream_resp = requests.post(f"{base_url}/webstream", json={"streamCtag": None}, headers=headers, timeout=30)
-              stream_resp.raise_for_status()
-              stream_data = stream_resp.json()
-              photo_guids = [p.get("photoGuid") for p in stream_data.get("photos", []) if p.get("photoGuid")][:200]
+          if raw_val:
+              if raw_val.startswith("http"):
+                  album_page_url = raw_val.split("#")[0]
+              else:
+                  album_page_url = f"https://photos.icloud.com/shared/album/{raw_val}"
 
-              if photo_guids:
-                  assets_resp = requests.post(
-                      f"{base_url}/webasseturls",
-                      json={"photoGuids": photo_guids},
-                      headers=headers,
-                      timeout=30
-                  )
-                  assets_resp.raise_for_status()
-                  assets_data = assets_resp.json()
-                  items = assets_data.get("items", {})
-                  locations = assets_data.get("locations", {})
-                  for guid in photo_guids:
-                      best_url = None
-                      best_w = -1
-                      for _, info in items.items():
-                          if info.get("photoGuid") == guid or info.get("checksum") in str(assets_data):
-                              w = int(info.get("width") or 0)
-                              url_loc = info.get("url_location")
-                              path = info.get("url_path")
-                              if url_loc and path and w >= best_w:
-                                  loc_obj = locations.get(url_loc, {})
-                                  scheme = loc_obj.get("scheme", "https")
-                                  hosts = loc_obj.get("hosts", [])
-                                  if hosts:
-                                      best_w = w
-                                      best_url = f"{scheme}://{hosts[0]}{path}"
-                      if best_url:
-                          photos.append(best_url)
+              headers = {
+                  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+              }
+              resp = requests.get(album_page_url, headers=headers, timeout=30, allow_redirects=True)
+              print(f"iCloud page status: {resp.status_code}, length: {len(resp.text)}")
+              resp.raise_for_status()
+
+              cleaned = resp.text.replace("\\u002F", "/").replace("\\/", "/").replace("\\u003D", "=")
+              candidates = re.findall(r'https://[a-zA-Z0-9.\-]+/[^\s"\'<>\\]+', cleaned)
+              seen = set()
+              for c in candidates:
+                  low = c.lower()
+                  if any(ext in low for ext in [".jpg", ".jpeg", ".png", ".webp"]) and "apple.com" not in low and "icloud.com/assets" not in low:
+                      clean_url = c.rstrip("\\")
+                      if clean_url not in seen:
+                          seen.add(clean_url)
+                          photos.append(clean_url)
 
           with open("public/photos.json", "w") as f:
               json.dump({"updated": datetime.now(timezone.utc).isoformat(), "photos": photos[:200]}, f)
