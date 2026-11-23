@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Family Dashboard</title>
+<meta name="theme-color" content="#0f172a">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
@@ -177,9 +180,30 @@
     background: #38bdf8; cursor: pointer;
   }
   #radio-status { font-size: 12px; color: #94a3b8; margin-top: 5px; }
+
+  /* Automatic Night Dimmer (10 PM - 7 AM) */
+  #night-dimmer {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.72);
+    pointer-events: none; z-index: 9998;
+    opacity: 0;
+    -webkit-transition: opacity 1.5s ease;
+    transition: opacity 1.5s ease;
+  }
+  #night-dimmer.active { opacity: 1; }
+
+  #night-pill {
+    position: fixed; top: 8px; right: 14px; z-index: 9999;
+    background: rgba(15, 23, 42, 0.85); color: #94a3b8;
+    border: 1px solid #334155; border-radius: 20px;
+    padding: 4px 10px; font-size: 11px; font-weight: 700;
+    display: none;
+  }
 </style>
 </head>
 <body>
+<div id="night-dimmer"></div>
+<div id="night-pill" onclick="toggleNightOverride()">Night Dim: ON (Tap to Brighten)</div>
 <div class="container">
   <div class="top-row">
     <div class="card mr w-clock">
@@ -767,6 +791,44 @@ document.addEventListener("visibilitychange", function() {
 });
 document.addEventListener("click", keepAwake);
 keepAwake();
+
+// 9. AUTOMATIC NIGHT DIMMER (22:00 TO 07:00 WITH TAP OVERRIDE)
+var nightOverride = false;
+var lastNightState = false;
+
+function checkNightMode() {
+  var hr = new Date().getHours();
+  var isNight = (hr >= 22 || hr < 7);
+  if (isNight !== lastNightState) {
+    nightOverride = false;
+    lastNightState = isNight;
+  }
+  var dimmer = document.getElementById("night-dimmer");
+  var pill = document.getElementById("night-pill");
+  if (!dimmer || !pill) return;
+
+  if (isNight) {
+    pill.style.display = "block";
+    if (nightOverride) {
+      dimmer.className = "";
+      pill.innerHTML = "Night Dim: PAUSED (Tap to Dim)";
+    } else {
+      dimmer.className = "active";
+      pill.innerHTML = "Night Dim: ON (Tap to Brighten)";
+    }
+  } else {
+    dimmer.className = "";
+    pill.style.display = "none";
+  }
+}
+
+function toggleNightOverride() {
+  nightOverride = !nightOverride;
+  checkNightMode();
+}
+
+setInterval(checkNightMode, 30000);
+checkNightMode();
 </script>
 </body>
 </html>
