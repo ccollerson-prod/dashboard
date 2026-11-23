@@ -743,6 +743,31 @@ function fmtYMD(d) {
   return d.getFullYear() + ("0" + (d.getMonth() + 1)).slice(-2) + ("0" + d.getDate()).slice(-2);
 }
 
+function extractScorers(ev) {
+  var comp = ev.competitions && ev.competitions[0];
+  var details = (comp && comp.details) || [];
+  var goals = [];
+  for (var i = 0; i < details.length; i++) {
+    var d = details[i];
+    if (!d.scoringPlay) continue;
+    var athletes = d.athletesInvolved || [];
+    var scorer = "";
+    if (athletes.length > 0) {
+      var rawName = athletes[0].shortName || athletes[0].displayName || "";
+      var parts = rawName.trim().split(" ");
+      scorer = parts.length > 1 ? parts[parts.length - 1] : rawName;
+    }
+    var clock = (d.clock && d.clock.displayValue) || "";
+    var tag = "";
+    if (d.ownGoal) tag = " (OG)";
+    else if (d.penaltyKick) tag = " (P)";
+    if (scorer || clock) {
+      goals.push((scorer ? scorer + " " : "") + clock + tag);
+    }
+  }
+  return goals.length > 0 ? '<span class="t-scorers" style="color:#cbd5e1;font-size:14px;margin-left:8px;">⚽ ' + goals.join(", ") + '</span>' : "";
+}
+
 function formatMatchLine(leagueLabel, ev, home, away, showFullDate) {
   var state = ev.status && ev.status.type && ev.status.type.state;
   var detail = (ev.status && ev.status.type && ev.status.type.shortDetail) || "";
@@ -750,6 +775,7 @@ function formatMatchLine(leagueLabel, ev, home, away, showFullDate) {
   var aName = (away.team && (away.team.shortDisplayName || away.team.name)) || "Away";
   var hScore = (home.score !== undefined && home.score !== null) ? home.score : "";
   var aScore = (away.score !== undefined && away.score !== null) ? away.score : "";
+  var scorersHtml = (state === "in" || state === "post") ? extractScorers(ev) : "";
 
   var scoreStr = "";
   if (state === "pre") {
@@ -757,10 +783,10 @@ function formatMatchLine(leagueLabel, ev, home, away, showFullDate) {
     var timePart = showFullDate ? ko : (ko ? ko.split(", ")[1] : detail);
     scoreStr = hName + " v " + aName + '<span class="t-status">(' + timePart + ')</span>';
   } else if (state === "in") {
-    scoreStr = hName + " " + hScore + "-" + aScore + " " + aName + '<span class="t-live">LIVE ' + detail + '</span>';
+    scoreStr = hName + " " + hScore + "-" + aScore + " " + aName + '<span class="t-live">LIVE ' + detail + '</span>' + scorersHtml;
   } else {
     var datePrefix = showFullDate ? (formatUkKickoff(ev.date).split(", ")[0] + " ") : "";
-    scoreStr = hName + " " + hScore + "-" + aScore + " " + aName + '<span class="t-status">(' + datePrefix + detail + ')</span>';
+    scoreStr = hName + " " + hScore + "-" + aScore + " " + aName + '<span class="t-status">(' + datePrefix + detail + ')</span>' + scorersHtml;
   }
   return '<span class="t-comp">[' + leagueLabel + ']</span>' + scoreStr;
 }
