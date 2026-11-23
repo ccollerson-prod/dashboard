@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Family Dashboard</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: #0f172a; color: #f8fafc;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .container {
+    display: -webkit-flex; display: flex;
+    -webkit-flex-direction: column; flex-direction: column;
+    width: 100%; height: 100%; padding: 18px;
+  }
+  .top-row {
+    display: -webkit-flex; display: flex;
+    height: 30%; margin-bottom: 16px;
+  }
+  .bottom-row {
+    display: -webkit-flex; display: flex;
+    height: 70%;
+  }
+  .card {
+    background: #1e293b; border: 1px solid #334155;
+    border-radius: 16px; padding: 18px 22px;
+    display: -webkit-flex; display: flex;
+    -webkit-flex-direction: column; flex-direction: column;
+    overflow: hidden;
+  }
+  .mr { margin-right: 16px; }
+  .w-clock { width: 34%; }
+  .w-weather { width: 42%; }
+  .w-xmas { width: 24%; text-align: center; -webkit-justify-content: center; justify-content: center; }
+  .w-cal { width: 34%; }
+  .w-chores { width: 34%; }
+  .w-right { width: 32%; display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column; }
+
+  h2 {
+    font-size: 15px; text-transform: uppercase; letter-spacing: 1.2px;
+    color: #94a3b8; margin-bottom: 12px; border-bottom: 1px solid #334155; padding-bottom: 6px;
+  }
+  #clock { font-size: 68px; font-weight: 700; line-height: 1; color: #38bdf8; }
+  #date { font-size: 22px; color: #cbd5e1; margin-top: 8px; }
+
+  .weather-now { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; margin-bottom: 12px; }
+  #temp-now { font-size: 46px; font-weight: 700; margin-right: 18px; color: #fbbf24; }
+  #weather-desc { font-size: 18px; color: #e2e8f0; }
+  .forecast-row { display: -webkit-flex; display: flex; -webkit-justify-content: space-between; justify-content: space-between; margin-top: auto; }
+  .f-day {
+    background: #0f172a; border-radius: 10px; padding: 8px 10px;
+    width: 23.5%; text-align: center; font-size: 14px;
+  }
+  .f-day strong { display: block; color: #38bdf8; margin-bottom: 4px; }
+
+  #xmas-days { font-size: 56px; font-weight: 800; color: #f43f5e; line-height: 1.05; }
+  .xmas-label { font-size: 18px; color: #cbd5e1; margin-top: 6px; }
+
+  .list-scroll { overflow-y: auto; -webkit-flex: 1; flex: 1; }
+  .cal-item {
+    background: #0f172a; border-left: 4px solid #38bdf8;
+    padding: 10px 12px; border-radius: 8px; margin-bottom: 10px;
+  }
+  .cal-item.tomorrow { border-left-color: #a78bfa; }
+  .cal-time { font-size: 13px; color: #94a3b8; font-weight: 600; }
+  .cal-title { font-size: 18px; color: #f8fafc; margin-top: 2px; }
+
+  .chore-input-row { display: -webkit-flex; display: flex; margin-bottom: 10px; }
+  .chore-input-row input {
+    -webkit-flex: 1; flex: 1; background: #0f172a; border: 1px solid #475569;
+    color: #fff; padding: 10px 12px; border-radius: 8px; font-size: 16px; margin-right: 8px;
+  }
+  .chore-input-row button {
+    background: #38bdf8; color: #0f172a; border: none; font-weight: 700;
+    padding: 0 16px; border-radius: 8px; font-size: 16px;
+  }
+  .chore-item {
+    display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+    background: #0f172a; padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; font-size: 18px;
+  }
+  .chore-item.done span { text-decoration: line-through; color: #64748b; }
+  .chore-item span { -webkit-flex: 1; flex: 1; margin-left: 10px; }
+  .del-btn { background: none; border: none; color: #ef4444; font-size: 18px; padding: 0 6px; }
+
+  .fact-card { height: 42%; margin-bottom: 16px; }
+  #fact-text { font-size: 18px; line-height: 1.45; color: #e2e8f0; }
+
+  .radio-card { height: 58%; }
+  .radio-grid { display: -webkit-flex; display: flex; -webkit-flex-wrap: wrap; flex-wrap: wrap; }
+  .radio-btn {
+    width: 48%; margin: 1%; padding: 12px 8px;
+    background: #0f172a; border: 1px solid #38bdf8; color: #f8fafc;
+    border-radius: 10px; font-size: 16px; font-weight: 600; text-align: center;
+  }
+  .radio-btn.active { background: #38bdf8; color: #0f172a; }
+  #radio-status { font-size: 13px; color: #94a3b8; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- TOP ROW -->
+  <div class="top-row">
+    <div class="card mr w-clock">
+      <h2>Local Time</h2>
+      <div id="clock">--:--</div>
+      <div id="date">Loading date...</div>
+    </div>
+    <div class="card mr w-weather">
+      <h2>Broughton Astley Weather</h2>
+      <div class="weather-now">
+        <div id="temp-now">--°C</div>
+        <div id="weather-desc">Loading forecast...</div>
+      </div>
+      <div class="forecast-row" id="forecast-row"></div>
+    </div>
+    <div class="card w-xmas">
+      <h2>Countdown to Christmas</h2>
+      <div id="xmas-days">--</div>
+      <div class="xmas-label" id="xmas-sub">days to go</div>
+    </div>
+  </div>
+
+  <!-- BOTTOM ROW -->
+  <div class="bottom-row">
+    <div class="card mr w-cal">
+      <h2>Family Calendar (Today &amp; Tomorrow)</h2>
+      <div class="list-scroll" id="cal-list">Loading events...</div>
+    </div>
+
+    <div class="card mr w-chores">
+      <h2>Family Chores</h2>
+      <div class="chore-input-row">
+        <input type="text" id="chore-input" placeholder="Add a chore...">
+        <button onclick="addChore()">Add</button>
+      </div>
+      <div class="list-scroll" id="chore-list"></div>
+    </div>
+
+    <div class="w-right">
+      <div class="card fact-card">
+        <h2>Fact of the Day</h2>
+        <div id="fact-text">Loading daily fact...</div>
+      </div>
+      <div class="card radio-card">
+        <h2>UK Radio Player</h2>
+        <div class="radio-grid" id="radio-grid"></div>
+        <div id="radio-status">Tap a station to play</div>
+        <audio id="radio-audio" preload="none"></audio>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// 1. CLOCK & CHRISTMAS COUNTDOWN (ES5 Safe)
+function updateClock() {
+  var now = new Date();
+  var h = ("0" + now.getHours()).slice(-2);
+  var m = ("0" + now.getMinutes()).slice(-2);
+  document.getElementById("clock").innerHTML = h + ":" + m;
+
+  var days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  var months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  document.getElementById("date").innerHTML = days[now.getDay()] + ", " + now.getDate() + " " + months[now.getMonth()] + " " + now.getFullYear();
+
+  var year = now.getFullYear();
+  var xmas = new Date(year, 11, 25);
+  if (now.getMonth() === 11 && now.getDate() > 25) {
+    xmas = new Date(year + 1, 11, 25);
+  }
+  var todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  var diffDays = Math.round((xmas - todayZero) / 86400000);
+  document.getElementById("xmas-days").innerHTML = diffDays === 0 ? "Today!" : diffDays;
+  document.getElementById("xmas-sub").innerHTML = diffDays === 1 ? "day until Christmas" : "days until Christmas";
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// 2. OPEN-METEO WEATHER FOR BROUGHTON ASTLEY (52.528, -1.227) - NO API KEY
+function fetchWeather() {
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "https://api.open-meteo.com/v1/forecast?latitude=52.528&longitude=-1.227&current=temperature_2m,precipitation_probability,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Europe%2FLondon&forecast_days=5", true);
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState === 4 && xhr.status === 200) {
+      var data = JSON.parse(xhr.responseText);
+      document.getElementById("temp-now").innerHTML = Math.round(data.current.temperature_2m) + "°C";
+      var rainNow = data.current.precipitation_probability || 0;
+      document.getElementById("weather-desc").innerHTML = "Rain chance: " + rainNow + "%<br>Broughton Astley, LE9";
+
+      var html = "";
+      var dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+      for (var i = 1; i <= 4; i++) {
+        var d = new Date(data.daily.time[i]);
+        var maxT = Math.round(data.daily.temperature_2m_max[i]);
+        var minT = Math.round(data.daily.temperature_2m_min[i]);
+        var pop = data.daily.precipitation_probability_max[i];
+        html += '<div class="f-day"><strong>' + dayNames[d.getDay()] + '</strong>' + maxT + '° / ' + minT + '°<br>💧 ' + pop + '%</div>';
+      }
+      document.getElementById("forecast-row").innerHTML = html;
+    }
+  };
+  xhr.send();
+}
+fetchWeather();
+setInterval(fetchWeather, 1800000);
+
+// 3. FAMILY CALENDAR FROM STATIC events.json (Built by GitHub Actions)
+function parseIcalDate(str) {
+  var y = parseInt(str.substr(0, 4), 10);
+  var mo = parseInt(str.substr(4, 2), 10) - 1;
+  var d = parseInt(str.substr(6, 2), 10);
+  if (str.length >= 15) {
+    var h = parseInt(str.substr(9, 2), 10);
+    var mi = parseInt(str.substr(11, 2), 10);
+    if (str.indexOf("Z") !== -1) {
+      return { date: new Date(Date.UTC(y, mo, d, h, mi)), allDay: false };
+    }
+    return { date: new Date(y, mo, d, h, mi), allDay: false };
+  }
+  return { date: new Date(y, mo, d), allDay: true };
+}
+
+function fetchCalendar() {
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "events.json?t=" + new Date().getTime(), true);
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState === 4 && xhr.status === 200) {
+      var data = JSON.parse(xhr.responseText);
+      var now = new Date();
+      var todayStr = now.toDateString();
+      var tmrw = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      var tmrwStr = tmrw.toDateString();
+
+      var items = [];
+      for (var i = 0; i < data.events.length; i++) {
+        var ev = data.events[i];
+        var parsed = parseIcalDate(ev.start);
+        var evDay = parsed.date.toDateString();
+        if (evDay === todayStr || evDay === tmrwStr) {
+          items.push({ title: ev.title, date: parsed.date, allDay: parsed.allDay, isTmrw: evDay === tmrwStr });
+        }
+      }
+      items.sort(function(a, b) { return a.date - b.date; });
+
+      var box = document.getElementById("cal-list");
+      if (items.length === 0) {
+        box.innerHTML = '<div style="color:#94a3b8;font-size:17px;">No events scheduled for today or tomorrow.</div>';
+        return;
+      }
+      var html = "";
+      for (var j = 0; j < items.length; j++) {
+        var it = items[j];
+        var label = it.isTmrw ? "Tomorrow" : "Today";
+        var timeTxt = it.allDay ? "All Day" : (("0" + it.date.getHours()).slice(-2) + ":" + ("0" + it.date.getMinutes()).slice(-2));
+        html += '<div class="cal-item' + (it.isTmrw ? ' tomorrow' : '') + '"><div class="cal-time">' + label + ' • ' + timeTxt + '</div><div class="cal-title">' + it.title + '</div></div>';
+      }
+      box.innerHTML = html;
+    }
+  };
+  xhr.send();
+}
+fetchCalendar();
+setInterval(fetchCalendar, 300000);
+
+// 4. INTERACTIVE CHORES (Saved locally in tablet browser)
+var chores = JSON.parse(localStorage.getItem("family_chores") || '[{"text":"Empty dishwasher","done":false},{"text":"Take bins out","done":false}]');
+function renderChores() {
+  localStorage.setItem("family_chores", JSON.stringify(chores));
+  var html = "";
+  for (var i = 0; i < chores.length; i++) {
+    html += '<div class="chore-item' + (chores[i].done ? ' done' : '') + '">' +
+            '<input type="checkbox" ' + (chores[i].done ? 'checked' : '') + ' onclick="toggleChore(' + i + ')" style="width:22px;height:22px;">' +
+            '<span>' + chores[i].text + '</span>' +
+            '<button class="del-btn" onclick="delChore(' + i + ')">✕</button></div>';
+  }
+  document.getElementById("chore-list").innerHTML = html;
+}
+function addChore() {
+  var inp = document.getElementById("chore-input");
+  if (inp.value.trim()) {
+    chores.push({ text: inp.value.trim(), done: false });
+    inp.value = "";
+    renderChores();
+  }
+}
+function toggleChore(i) { chores[i].done = !chores[i].done; renderChores(); }
+function delChore(i) { chores.splice(i, 1); renderChores(); }
+renderChores();
+
+// 5. ADULT FACT OF THE DAY (Rotates daily without CORS issues)
+var adultFacts = [
+  "Oxford University is older than the Aztec Empire—teaching began there around 1096, over 200 years before Tenochtitlan was founded.",
+  "Cleopatra lived closer in time to the first Moon landing in 1969 than she did to the construction of the Great Pyramid of Giza.",
+  "Sharks have existed on Earth for roughly 400 million years—making them older than trees and even older than Saturn's rings.",
+  "A day on Venus is longer than a year on Venus; it takes longer to rotate once on its axis than to complete one orbit of the Sun.",
+  "Honey never spoils: archaeologists have found 3,000-year-old pots of honey in ancient Egyptian tombs that were still completely edible.",
+  "The inventor of the microwave oven, Percy Spencer, was awarded just $2 by Raytheon for his discovery in 1945.",
+  "Scotland's official national animal is the unicorn, chosen in the 14th century to symbolize purity, chivalry, and untamed pride.",
+  "There are more possible iterations of a game of chess than there are atoms in the observable universe.",
+  "Wombats are the only known animals in the world that produce cube-shaped droppings, which stops them from rolling away.",
+  "The Eiffel Tower grows up to 15 centimetres taller during the summer due to thermal expansion of the iron.",
+  "Octopuses have three hearts, nine brains, and blue copper-based blood that helps them survive in deep, cold ocean water.",
+  "Nintendo was founded in 1889 in Kyoto, Japan—the same year the Eiffel Tower was completed—originally making handmade playing cards."
+];
+var dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+document.getElementById("fact-text").innerHTML = adultFacts[dayOfYear % adultFacts.length];
+
+// 6. ONE-TAP UK RADIO PLAYER
+var stations = [
+  { name: "Kisstory", url: "https://edge-bauerall-01-gos2.sharp-stream.com/kisstory.mp3" },
+  { name: "BBC Radio Leicester", url: "https://as-hls-ww-live.akamaized.net/pool_904/live/ww/bbc_radio_leicester/bbc_radio_leicester.isml/bbc_radio_leicester-audio%3d96000.norewind.m3u8" },
+  { name: "Capital FM", url: "https://media-ice.musicradio.com/CapitalMP3" },
+  { name: "BBC Radio 5 Live", url: "https://as-hls-ww-live.akamaized.net/pool_904/live/ww/bbc_radio_five_live/bbc_radio_five_live.isml/bbc_radio_five_live-audio%3d96000.norewind.m3u8" },
+  { name: "BBC Radio 2", url: "https://as-hls-ww-live.akamaized.net/pool_904/live/ww/bbc_radio_two/bbc_radio_two.isml/bbc_radio_two-audio%3d96000.norewind.m3u8" }
+];
+var currentStation = -1;
+var audioEl = document.getElementById("radio-audio");
+function renderRadio() {
+  var html = "";
+  for (var i = 0; i < stations.length; i++) {
+    html += '<button class="radio-btn' + (currentStation === i ? ' active' : '') + '" onclick="toggleStation(' + i + ')">' +
+            (currentStation === i ? '⏹ ' : '▶ ') + stations[i].name + '</button>';
+  }
+  document.getElementById("radio-grid").innerHTML = html;
+}
+function toggleStation(i) {
+  var status = document.getElementById("radio-status");
+  if (currentStation === i) {
+    audioEl.pause();
+    audioEl.src = "";
+    currentStation = -1;
+    status.innerHTML = "Stopped";
+  } else {
+    currentStation = i;
+    audioEl.src = stations[i].url;
+    status.innerHTML = "Connecting to " + stations[i].name + "...";
+    audioEl.play().then(function() {
+      status.innerHTML = "Playing: " + stations[i].name;
+    }).catch(function() {
+      status.innerHTML = "Stream blocked by browser — opening BBC/station player...";
+      window.open(stations[i].url, "_blank");
+    });
+  }
+  renderRadio();
+}
+renderRadio();
+
+// 7. SILENT AUTO-UPDATE WITHOUT DROPPING FULL SCREEN
+var knownVersion = null;
+function checkUpdate() {
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "version.txt?t=" + new Date().getTime(), true);
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState === 4 && xhr.status === 200) {
+      var v = xhr.responseText.trim();
+      if (knownVersion && knownVersion !== v) {
+        window.location.reload();
+      }
+      knownVersion = v;
+    }
+  };
+  xhr.send();
+}
+setInterval(checkUpdate, 60000);
+checkUpdate();
+
+// 8. SCREEN WAKE LOCK (Browser-level)
+function keepAwake() {
+  if ("wakeLock" in navigator) {
+    navigator.wakeLock.request("screen").catch(function() {});
+  }
+}
+document.addEventListener("visibilitychange", function() {
+  if (document.visibilityState === "visible") keepAwake();
+});
+document.addEventListener("click", keepAwake);
+keepAwake();
+</script>
+</body>
+</html>
