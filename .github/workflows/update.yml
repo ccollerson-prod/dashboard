@@ -18,9 +18,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch Private Calendar & BBC News Headlines
+      - name: Fetch Private Calendar, BBC News & Google Photos
         env:
           ICAL_URL: ${{ secrets.ICAL_URL }}
+          PHOTOS_URL: ${{ secrets.PHOTOS_URL }}
         run: |
           mkdir -p public
           cp index.html public/index.html
@@ -57,10 +58,28 @@ jobs:
                   title_el = item.find("title")
                   if title_el is not None and title_el.text:
                       headlines.append(title_el.text.strip())
-          except Exception as e:
+          except Exception:
               headlines = ["Unable to load BBC News headlines right now."]
           with open("public/news.json", "w") as f:
               json.dump({"updated": datetime.now(timezone.utc).isoformat(), "headlines": headlines}, f)
+
+          # 3. Fetch Google Photos Shared Album URLs
+          photos_url = os.environ.get("PHOTOS_URL", "")
+          photos = []
+          if photos_url:
+              try:
+                  req = urllib.request.Request(photos_url, headers={"User-Agent": "Mozilla/5.0"})
+                  html = urllib.request.urlopen(req, timeout=20).read().decode("utf-8", errors="ignore")
+                  matches = re.findall(r'https://lh3\.googleusercontent\.com/pw/[A-Za-z0-9\-_]+', html)
+                  seen = set()
+                  for m in matches:
+                      if m not in seen:
+                          seen.add(m)
+                          photos.append(m + "=w1200-h800-no")
+              except Exception:
+                  pass
+          with open("public/photos.json", "w") as f:
+              json.dump({"updated": datetime.now(timezone.utc).isoformat(), "photos": photos[:40]}, f)
           EOF
 
       - name: Package Pages Artifact
