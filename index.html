@@ -744,4 +744,259 @@ function fmtYMD(d) {
 }
 
 function formatMatchLine(leagueLabel, ev, home, away, showFullDate) {
-  var
+  var state = ev.status && ev.status.type && ev.status.type.state;
+  var detail = (ev.status && ev.status.type && ev.status.type.shortDetail) || "";
+  var hName = (home.team && (home.team.shortDisplayName || home.team.name)) || "Home";
+  var aName = (away.team && (away.team.shortDisplayName || away.team.name)) || "Away";
+  var hScore = (home.score !== undefined && home.score !== null) ? home.score : "";
+  var aScore = (away.score !== undefined && away.score !== null) ? away.score : "";
+
+  var scoreStr = "";
+  if (state === "pre") {
+    var ko = formatUkKickoff(ev.date);
+    var timePart = showFullDate ? ko : (ko ? ko.split(", ")[1] : detail);
+    scoreStr = hName + " v " + aName + '<span class="t-status">(' + timePart + ')</span>';
+  } else if (state === "in") {
+    scoreStr = hName + " " + hScore + "-" + aScore + " " + aName + '<span class="t-live">LIVE ' + detail + '</span>';
+  } else {
+    var datePrefix = showFullDate ? (formatUkKickoff(ev.date).split(", ")[0] + " ") : "";
+    scoreStr = hName + " " + hScore + "-" + aScore + " " + aName + '<span class="t-status">(' + datePrefix + detail + ')</span>';
+  }
+  return '<span class="t-comp">[' + leagueLabel + ']</span>' + scoreStr;
+}
+
+function fetchFootballScores() {
+  var favToday = [];
+  var todayOther = [];
+  var fallbackFixtures = [];
+  var nextLcfcObj = null;
+  var lcfcStandingTag = "";
+
+  var tableLeagues = [];
+  for (var t = 0; t < ukLeagues.length; t++) {
+    if (ukLeagues[t].hasTable) tableLeagues.push(ukLeagues[t]);
+  }
+
+  var totalRequests = ukLeagues.length + tableLeagues.length;
+  var completed = 0;
+
+  var now = new Date();
+  var todayYMD = fmtYMD(now);
+
+  function finishTicker() {
+    var lead = [];
+    if (favToday.length > 0) {
+      for (var f = 0; f < favToday.length; f++) {
+        lead.push('<span class="t-item t-fav">' + favToday[f] + lcfcStandingTag + '</span>');
+      }
+    } else if (nextLcfcObj) {
+      lead.push('<span class="t-item t-fav">' + nextLcfcObj.html + lcfcStandingTag + '</span>');
+    } else if (lcfcStandingTag) {
+      lead.push('<span class="t-item t-fav"><span class="t-comp">[LCFC]</span>Leicester City' + lcfcStandingTag + '</span>');
+    }
+
+    var pool = todayOther.length > 0 ? todayOther : fallbackFixtures;
+    var allItems = lead.concat(pool);
+    var track = document.getElementById("football-ticker");
+    if (allItems.length > 0) {
+      track.innerHTML = allItems.join("");
+      var duration = Math.max(30, allItems.length * 5);
+      track.style.webkitAnimationDuration = duration + "s";
+      track.style.animationDuration = duration + "s";
+    } else {
+      track.innerHTML = "No fixtures available right now across Premier League, Championship, League One, or Domestic Cups.";
+    }
+  }
+
+  for (var i = 0; i < ukLeagues.length; i++) {
+    (function(league) {
+      var todayXhr = new XMLHttpRequest();
+      todayXhr.open("GET", "https://site.api.espn.com/apis/site/v2/sports/soccer/" + league.code + "/scoreboard?dates=" + todayYMD, true);
+      todayXhr.onreadystatechange = function() {
+        if (todayXhr.readyState === 4) {
+          if (todayXhr.status === 200) {
+            try {
+              var data = JSON.parse(todayXhr.responseText);
+              var events = data.events || [];
+              for (var j = 0; j < events.length; j++) {
+                var ev = events[j];
+                var comp = ev.competitions && ev.competitions[0];
+                if (!comp || !comp.competitors || comp.competitors.length < 2) continue;
+                var home = comp.competitors[0].homeAway === "home" ? comp.competitors[0] : comp.competitors[1];
+                var away = comp.competitors[0].homeAway === "away" ? comp.competitors[0] : comp.competitors[1];
+                var hName = (home.team && (home.team.shortDisplayName || home.team.name)) || "";
+                var aName = (away.team && (away.team.shortDisplayName || away.team.name)) || "";
+                var isFav = (hName.toLowerCase().indexOf("leicester") !== -1 || aName.toLowerCase().indexOf("leicester") !== -1);
+
+                var line = formatMatchLine(league.label, ev, home, away, false);
+                if (isFav) {
+                  favToday.push(line);
+                } else {
+                  todayOther.push('<span class="t-item">' + line + '</span>');
+                }
+              }
+            } catch (e) {}
+          }
+
+          var defXhr = new XMLHttpRequest();
+          defXhr.open("GET", "https://site.api.espn.com/apis/site/v2/sports/soccer/" + league.code + "/scoreboard", true);
+          defXhr.onreadystatechange = function() {
+            if (defXhr.readyState === 4) {
+              if (defXhr.status === 200) {
+                try {
+                  var dData = JSON.parse(defXhr.responseText);
+                  var dEvents = dData.events || [];
+                  for (var m = 0; m < dEvents.length; m++) {
+                    var dev = dEvents[m];
+                    var dComp = dev.competitions && dev.competitions[0];
+                    if (!dComp || !dComp.competitors || dComp.competitors.length < 2) continue;
+                    var dHome = dComp.competitors[0].homeAway === "home" ? dComp.competitors[0] : dComp.competitors[1];
+                    var dAway = dComp.competitors[0].homeAway === "away" ? dComp.competitors[0] : dComp.competitors[1];
+                    var dhName = (dHome.team && (dHome.team.shortDisplayName || dHome.team.name)) || "";
+                    var daName = (dAway.team && (dAway.team.shortDisplayName || dAway.team.name)) || "";
+                    var dState = dev.status && dev.status.type && dev.status.type.state;
+                    var isFavMatch = (dhName.toLowerCase().indexOf("leicester") !== -1 || daName.toLowerCase().indexOf("leicester") !== -1);
+
+                    if (isFavMatch && dState === "pre") {
+                      var evMs = new Date(dev.date).getTime();
+                      if (!isNaN(evMs) && (!nextLcfcObj || evMs < nextLcfcObj.ms)) {
+                        nextLcfcObj = {
+                          ms: evMs,
+                          html: formatMatchLine("NEXT " + league.label, dev, dHome, dAway, true)
+                        };
+                      }
+                    } else if (!isFavMatch && fallbackFixtures.length < 18) {
+                      fallbackFixtures.push('<span class="t-item">' + formatMatchLine(league.label, dev, dHome, dAway, true) + '</span>');
+                    }
+                  }
+                } catch (e) {}
+              }
+              completed++;
+              if (completed === totalRequests) finishTicker();
+            }
+          };
+          defXhr.send();
+        }
+      };
+      todayXhr.send();
+    })(ukLeagues[i]);
+  }
+
+  for (var k = 0; k < tableLeagues.length; k++) {
+    (function(league) {
+      var sXhr = new XMLHttpRequest();
+      sXhr.open("GET", "https://site.api.espn.com/apis/site/v2/sports/soccer/" + league.code + "/standings", true);
+      sXhr.onreadystatechange = function() {
+        if (sXhr.readyState === 4) {
+          if (sXhr.status === 200) {
+            try {
+              var stData = JSON.parse(sXhr.responseText);
+              var children = stData.children || [stData];
+              for (var c = 0; c < children.length; c++) {
+                var entries = (children[c].standings && children[c].standings.entries) || [];
+                for (var e = 0; e < entries.length; e++) {
+                  var entry = entries[e];
+                  var tName = (entry.team && (entry.team.displayName || entry.team.name || "")).toLowerCase();
+                  if (tName.indexOf("leicester") !== -1) {
+                    var rankVal = "";
+                    var ptsVal = "";
+                    var stats = entry.stats || [];
+                    for (var st = 0; st < stats.length; st++) {
+                      if (stats[st].name === "rank") rankVal = stats[st].displayValue || stats[st].value;
+                      if (stats[st].name === "points") ptsVal = stats[st].displayValue || Math.round(stats[st].value);
+                    }
+                    if (rankVal && ptsVal !== "") {
+                      lcfcStandingTag = '<span class="t-status" style="color:#fde68a;font-weight:700;"> • ' + getOrdinal(rankVal) + ' (' + ptsVal + ' pts)</span>';
+                    }
+                  }
+                }
+              }
+            } catch (e) {}
+          }
+          completed++;
+          if (completed === totalRequests) finishTicker();
+        }
+      };
+      sXhr.send();
+    })(tableLeagues[k]);
+  }
+}
+fetchFootballScores();
+setInterval(fetchFootballScores, 120000);
+
+// 7. SILENT AUTO-UPDATE WITHOUT DROPPING FULL SCREEN
+var knownVersion = null;
+function checkUpdate() {
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "version.txt?t=" + new Date().getTime(), true);
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState === 4 && xhr.status === 200) {
+      var v = xhr.responseText.trim();
+      if (knownVersion && knownVersion !== v) {
+        window.location.reload();
+      }
+      knownVersion = v;
+    }
+  };
+  xhr.send();
+}
+setInterval(checkUpdate, 60000);
+checkUpdate();
+
+// 8. SCREEN WAKE LOCK
+function keepAwake() {
+  if ("wakeLock" in navigator) {
+    navigator.wakeLock.request("screen").catch(function() {});
+  }
+}
+document.addEventListener("visibilitychange", function() {
+  if (document.visibilityState === "visible") keepAwake();
+});
+document.addEventListener("click", keepAwake);
+keepAwake();
+
+// 9. AUTOMATIC NIGHT DIMMER (22:00 TO 07:00 WITH TAP OVERRIDE)
+var nightOverride = false;
+var lastNightState = false;
+
+function checkNightMode() {
+  var hr = new Date().getHours();
+  var isNight = (hr >= 22 || hr < 7);
+  if (isNight !== lastNightState) {
+    nightOverride = false;
+    lastNightState = isNight;
+  }
+  var dimmer = document.getElementById("night-dimmer");
+  var pill = document.getElementById("night-pill");
+  if (!dimmer || !pill) return;
+
+  if (isNight) {
+    pill.style.display = "block";
+    if (nightOverride) {
+      dimmer.className = "";
+      pill.innerHTML = "Night Dim: PAUSED (Tap to Dim)";
+    } else {
+      dimmer.className = "active";
+      pill.innerHTML = "Night Dim: ON (Tap to Brighten)";
+    }
+  } else {
+    dimmer.className = "";
+    pill.style.display = "none";
+  }
+}
+
+function toggleNightOverride() {
+  nightOverride = !nightOverride;
+  checkNightMode();
+}
+
+setInterval(checkNightMode, 30000);
+checkNightMode();
+
+// 10. REGISTER SERVICE WORKER FOR CHROME PWA INSTALL
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(function() {});
+}
+</script>
+</body>
+</html>
