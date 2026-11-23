@@ -57,7 +57,7 @@
   .t-comp { color: #38bdf8; font-weight: 700; font-size: 13px; margin-right: 6px; }
   .t-live { color: #fbbf24; font-weight: 700; margin-left: 6px; }
   .t-status { color: #94a3b8; font-size: 14px; margin-left: 6px; }
-  .t-fav { color: #fbbf24; font-weight: 800; background: rgba(251, 191, 36, 0.14); padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(251, 191, 36, 0.45); }
+  .t-fav { color: #fbbf24; font-weight: 800; background: rgba(251, 191, 36, 0.14); padding: 2px 10px; border-radius: 6px; border: 1px solid rgba(251, 191, 36, 0.45); }
 
   .card {
     background: #1e293b; border: 1px solid #334155;
@@ -213,7 +213,7 @@
   <div class="ticker-bar">
     <div class="ticker-badge">UK Football</div>
     <div class="ticker-wrap">
-      <div class="ticker-track" id="football-ticker">Loading Premier League, Championship, League One &amp; Cup scores...</div>
+      <div class="ticker-track" id="football-ticker">Loading Leicester City &amp; today's UK football fixtures...</div>
     </div>
   </div>
 </div>
@@ -470,7 +470,7 @@ function toggleStation(i) {
 }
 renderRadio();
 
-// 7. LIVE UK FOOTBALL SCORES TICKER (Leicester City Pinned First in Gold)
+// 7. LIVE UK FOOTBALL SCORES TICKER (Today's Fixtures + Next LCFC Fixture + League Position & Points)
 var ukLeagues = [
   { code: "eng.1", label: "PL" },
   { code: "eng.2", label: "CHAMP" },
@@ -479,15 +479,58 @@ var ukLeagues = [
   { code: "eng.league_cup", label: "EFL CUP" }
 ];
 
+function formatUkKickoff(isoStr) {
+  if (!isoStr) return "";
+  var d = new Date(isoStr);
+  if (isNaN(d.getTime())) return "";
+  var days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  var hh = ("0" + d.getHours()).slice(-2);
+  var mm = ("0" + d.getMinutes()).slice(-2);
+  return days[d.getDay()] + " " + d.getDate() + " " + months[d.getMonth()] + ", " + hh + ":" + mm;
+}
+
 function fetchFootballScores() {
-  var favResults = [];
+  var favToday = [];
   var results = [];
+  var nextLcfcBase = "";
+  var lcfcStandingTag = "";
+  var totalRequests = ukLeagues.length + 2;
   var completed = 0;
 
+  var now = new Date();
+  var yyyy = now.getFullYear();
+  var mm = ("0" + (now.getMonth() + 1)).slice(-2);
+  var dd = ("0" + now.getDate()).slice(-2);
+  var todayParam = "?dates=" + yyyy + mm + dd;
+
+  function finishTicker() {
+    var lead = [];
+    if (favToday.length > 0) {
+      for (var f = 0; f < favToday.length; f++) {
+        lead.push('<span class="t-item t-fav">' + favToday[f] + lcfcStandingTag + '</span>');
+      }
+    } else if (nextLcfcBase) {
+      lead.push('<span class="t-item t-fav">' + nextLcfcBase + lcfcStandingTag + '</span>');
+    }
+
+    var allItems = lead.concat(results);
+    var track = document.getElementById("football-ticker");
+    if (allItems.length > 0) {
+      track.innerHTML = allItems.join("");
+      var duration = Math.max(30, allItems.length * 6);
+      track.style.webkitAnimationDuration = duration + "s";
+      track.style.animationDuration = duration + "s";
+    } else {
+      track.innerHTML = "No scheduled matches across Premier League, Championship, League One, or Domestic Cups today.";
+    }
+  }
+
+  // A. Fetch Today's Matches Across All 5 Competitions
   for (var i = 0; i < ukLeagues.length; i++) {
     (function(league) {
       var xhr = new XMLHttpRequest();
-      xhr.open("GET", "https://site.api.espn.com/apis/site/v2/sports/soccer/" + league.code + "/scoreboard", true);
+      xhr.open("GET", "https://site.api.espn.com/apis/site/v2/sports/soccer/" + league.code + "/scoreboard" + todayParam, true);
       xhr.onreadystatechange = function() {
         if (xhr.readyState === 4) {
           if (xhr.status === 200) {
@@ -506,44 +549,110 @@ function fetchFootballScores() {
                 var aName = away.team.shortDisplayName || away.team.name;
 
                 var isFav = (hName.toLowerCase().indexOf("leicester") !== -1 || aName.toLowerCase().indexOf("leicester") !== -1);
-                var itemCls = isFav ? "t-item t-fav" : "t-item";
 
                 var scoreStr = "";
                 if (state === "pre") {
-                  scoreStr = hName + " v " + aName + '<span class="t-status">(' + detail + ')</span>';
+                  var ko = formatUkKickoff(ev.date);
+                  var timePart = ko ? ko.split(", ")[1] : detail;
+                  scoreStr = hName + " v " + aName + '<span class="t-status">(' + timePart + ')</span>';
                 } else if (state === "in") {
                   scoreStr = hName + " " + home.score + "-" + away.score + " " + aName + '<span class="t-live">LIVE ' + detail + '</span>';
                 } else {
                   scoreStr = hName + " " + home.score + "-" + away.score + " " + aName + '<span class="t-status">(' + detail + ')</span>';
                 }
 
-                var htmlItem = '<span class="' + itemCls + '"><span class="t-comp">[' + league.label + ']</span>' + scoreStr + '</span>';
+                var innerHtml = '<span class="t-comp">[' + league.label + ']</span>' + scoreStr;
                 if (isFav) {
-                  favResults.push(htmlItem);
+                  favToday.push(innerHtml);
                 } else {
-                  results.push(htmlItem);
+                  results.push('<span class="t-item">' + innerHtml + '</span>');
                 }
               }
             } catch (e) {}
           }
           completed++;
-          if (completed === ukLeagues.length) {
-            var allItems = favResults.concat(results);
-            var track = document.getElementById("football-ticker");
-            if (allItems.length > 0) {
-              track.innerHTML = allItems.join("");
-              var duration = Math.max(30, allItems.length * 6);
-              track.style.webkitAnimationDuration = duration + "s";
-              track.style.animationDuration = duration + "s";
-            } else {
-              track.innerHTML = "No scheduled matches across Premier League, Championship, League One, or Domestic Cups today.";
-            }
-          }
+          if (completed === totalRequests) finishTicker();
         }
       };
       xhr.send();
     })(ukLeagues[i]);
   }
+
+  // B. Fetch Next Upcoming Leicester City Fixture (ESPN Team ID 375)
+  var lcfcXhr = new XMLHttpRequest();
+  lcfcXhr.open("GET", "https://site.api.espn.com/apis/site/v2/sports/soccer/all/teams/375/schedule", true);
+  lcfcXhr.onreadystatechange = function() {
+    if (lcfcXhr.readyState === 4) {
+      if (lcfcXhr.status === 200) {
+        try {
+          var sData = JSON.parse(lcfcXhr.responseText);
+          var sEvents = sData.events || [];
+          var nowMs = new Date().getTime();
+          var nextEv = null;
+
+          for (var k = 0; k < sEvents.length; k++) {
+            var ev = sEvents[k];
+            var st = ev.competitions && ev.competitions[0] && ev.competitions[0].status && ev.competitions[0].status.type && ev.competitions[0].status.type.state;
+            var evMs = new Date(ev.date).getTime();
+            if (st === "pre" && evMs > nowMs) {
+              if (!nextEv || evMs < new Date(nextEv.date).getTime()) {
+                nextEv = ev;
+              }
+            }
+          }
+
+          if (nextEv) {
+            var comp = nextEv.competitions[0];
+            var c0 = comp.competitors[0];
+            var c1 = comp.competitors[1];
+            var lcfcIsHome = (String(c0.team.id) === "375" && c0.homeAway === "home") || (String(c1.team.id) === "375" && c1.homeAway === "home");
+            var opp = String(c0.team.id) === "375" ? c1.team : c0.team;
+            var oppName = opp.shortDisplayName || opp.name;
+            var venueTag = lcfcIsHome ? "(H)" : "(A)";
+            var koStr = formatUkKickoff(nextEv.date);
+            nextLcfcBase = '<span class="t-comp">[NEXT LCFC]</span>Leicester v ' + oppName + ' ' + venueTag + '<span class="t-status">(' + koStr + ')</span>';
+          }
+        } catch (e) {}
+      }
+      completed++;
+      if (completed === totalRequests) finishTicker();
+    }
+  };
+  lcfcXhr.send();
+
+  // C. Fetch Leicester City Current League Rank & Points
+  var rankXhr = new XMLHttpRequest();
+  rankXhr.open("GET", "https://site.api.espn.com/apis/site/v2/sports/soccer/all/teams/375", true);
+  rankXhr.onreadystatechange = function() {
+    if (rankXhr.readyState === 4) {
+      if (rankXhr.status === 200) {
+        try {
+          var tData = JSON.parse(rankXhr.responseText);
+          var team = tData.team || {};
+          var standingSummary = team.standingSummary || "";
+          var pts = "";
+          var recItems = (team.record && team.record.items) || [];
+          if (recItems.length > 0 && recItems[0].stats) {
+            for (var s = 0; s < recItems[0].stats.length; s++) {
+              if (recItems[0].stats[s].name === "points") {
+                pts = Math.round(recItems[0].stats[s].value) + " pts";
+                break;
+              }
+            }
+          }
+          var rankShort = standingSummary ? standingSummary.split(" in ")[0] : "";
+          if (rankShort && pts) {
+            lcfcStandingTag = '<span class="t-status" style="color:#fde68a;font-weight:700;"> • ' + rankShort + ' (' + pts + ')</span>';
+          } else if (rankShort) {
+            lcfcStandingTag = '<span class="t-status" style="color:#fde68a;font-weight:700;"> • ' + rankShort + '</span>';
+          }
+        } catch (e) {}
+      }
+      completed++;
+      if (completed === totalRequests) finishTicker();
+    }
+  };
+  rankXhr.send();
 }
 fetchFootballScores();
 setInterval(fetchFootballScores, 120000);
