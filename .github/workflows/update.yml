@@ -94,7 +94,7 @@ jobs:
                   print("Photo fetch error:", e)
           print(f"Fetched {len(photos)} photos from album")
           with open("public/photos.json", "w") as f:
-              json.dump({"updated": datetime.now(timezone.utc).isoformat(), "photos": photos[:40]}, f)
+              json.dump({"updated": datetime.now(timezone.utc).isoformat(), "photos": photos[:250]}, f)
           EOF
 
       - name: Package Pages Artifact
