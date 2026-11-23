@@ -33,6 +33,8 @@ jobs:
           mkdir -p public
           cp index.html public/index.html
           cp manifest.json public/manifest.json
+          cp icon-512.png public/icon-512.png
+          cp sw.js public/sw.js
           python - << 'EOF'
           import os, json, re, requests
           from datetime import datetime, timedelta, timezone
