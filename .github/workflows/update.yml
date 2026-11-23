@@ -1,114 +1,98 @@
-name: Update Family Dashboard
+name: Update Dashboard Data
+
 on:
+  schedule:
+    - cron: '*/30 * * * *'
   workflow_dispatch:
   push:
     branches: [ main ]
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Fetch Private Calendar, BBC News & Google Photos
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests icalendar recurring-ical-events
+
+      - name: Fetch Private Calendar & Google Photos
         env:
           ICAL_URL: ${{ secrets.ICAL_URL }}
-          PHOTOS_URL: ${{ secrets.PHOTOS_URL }}
+          GOOGLE_ALBUM_URL: ${{ secrets.GOOGLE_ALBUM_URL }}
         run: |
           mkdir -p public
           cp index.html public/index.html
-          date -u +"%Y-%m-%dT%H:%M:%SZ" > public/version.txt
-          python3 - << 'EOF'
-          import os, urllib.request, http.cookiejar, json, re, xml.etree.ElementTree as ET
-          from datetime import datetime, timezone
+          cp manifest.json public/manifest.json
+          python - << 'EOF'
+          import os, json, re, requests
+          from datetime import datetime, timedelta, timezone
+          from icalendar import Calendar
+          import recurring_ical_events
 
-          # 1. Fetch Private Calendar
-          url = os.environ.get("ICAL_URL", "").strip()
-          events = []
-          if url:
-              raw = urllib.request.urlopen(url, timeout=20).read().decode("utf-8", errors="ignore")
-              raw = re.sub(r"\r?\n[ \t]", "", raw)
-              for block in raw.split("BEGIN:VEVENT")[1:]:
-                  block = block.split("END:VEVENT")[0]
-                  summary = re.search(r"^SUMMARY(?:;[^:]*)?:(.*)$", block, re.M)
-                  dtstart = re.search(r"^DTSTART(?:;[^:]*)?:(.*)$", block, re.M)
-                  if summary and dtstart:
-                      events.append({
-                          "title": summary.group(1).replace("\\,", ",").strip(),
-                          "start": dtstart.group(1).strip()
-                      })
+          # 1. Fetch & expand recurring events for the next 14 days
+          ical_url = os.environ.get("ICAL_URL", "").strip()
+          events_out = []
+          if ical_url:
+              r = requests.get(ical_url, timeout=30)
+              r.raise_for_status()
+              cal = Calendar.from_ical(r.text)
+              now = datetime.now(timezone.utc)
+              start = now - timedelta(days=1)
+              end = now + timedelta(days=14)
+              expanded = recurring_ical_events.of(cal).between(start, end)
+              for component in expanded:
+                  summary = str(component.get("SUMMARY", "Busy"))
+                  dtstart = component.get("DTSTART").dt
+                  if hasattr(dtstart, "isoformat"):
+                      if hasattr(dtstart, "tzinfo") and dtstart.tzinfo is not None:
+                          dt_utc = dtstart.astimezone(timezone.utc)
+                          start_str = dt_utc.strftime("%Y%m%dT%H%M%SZ")
+                      elif isinstance(dtstart, datetime):
+                          start_str = dtstart.strftime("%Y%m%dT%H%M%S")
+                      else:
+                          start_str = dtstart.strftime("%Y%m%d")
+                  else:
+                      start_str = str(dtstart)
+                  events_out.append({"title": summary, "start": start_str})
+
           with open("public/events.json", "w") as f:
-              json.dump({"updated": datetime.now(timezone.utc).isoformat(), "events": events}, f)
+              json.dump({"updated": datetime.now(timezone.utc).isoformat(), "events": events_out}, f)
+          print(f"Saved {len(events_out)} calendar events.")
 
-          # 2. Fetch BBC News UK Headlines
-          headlines = []
-          try:
-              req = urllib.request.Request("https://feeds.bbci.co.uk/news/uk/rss.xml", headers={"User-Agent": "Mozilla/5.0"})
-              xml_data = urllib.request.urlopen(req, timeout=20).read()
-              root = ET.fromstring(xml_data)
-              for item in root.findall(".//item")[:8]:
-                  title_el = item.find("title")
-                  if title_el is not None and title_el.text:
-                      headlines.append(title_el.text.strip())
-          except Exception:
-              headlines = ["Unable to load BBC News headlines right now."]
-          with open("public/news.json", "w") as f:
-              json.dump({"updated": datetime.now(timezone.utc).isoformat(), "headlines": headlines}, f)
-
-          # 3. Fetch Google Photos Shared Album URLs (Bypass UK/EU Consent Wall)
-          photos_url = os.environ.get("PHOTOS_URL", "").strip()
+          # 2. Fetch up to 200 image URLs from public Google Photos shared album
+          album_url = os.environ.get("GOOGLE_ALBUM_URL", "").strip()
           photos = []
-          if photos_url:
-              try:
-                  cj = http.cookiejar.CookieJar()
-                  opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
-                  opener.addheaders = [
-                      ("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"),
-                      ("Accept-Language", "en-GB,en;q=0.9"),
-                      ("Cookie", "SOCS=CAISNQgDEitib3FfaWRlbnRpdHlmcm9udGVuZHVpc2VydmVyXzIwMjMwODI5LjA3X3AxGgJlbiACGgYIgJnPpwY; CONSENT=YES+cb.20210328-17-p0.en+FX+417")
-                  ]
-                  resp = opener.open(photos_url, timeout=25)
-                  final_url = resp.geturl()
-                  html = resp.read().decode("utf-8", errors="ignore")
-                  print("Resolved URL:", final_url[:80])
+          if album_url:
+              headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+              resp = requests.get(album_url, headers=headers, timeout=30, allow_redirects=True)
+              resp.raise_for_status()
+              matches = re.findall(r'https://lh3\.googleusercontent\.com/pw/[A-Za-z0-9\-_]+', resp.text)
+              seen = set()
+              for m in matches:
+                  if m not in seen:
+                      seen.add(m)
+                      photos.append(m + "=w1280-h960-no")
 
-                  html = html.replace("\\u003d", "=").replace("\\/", "/")
-                  matches = re.findall(r'https://lh3\.googleusercontent\.com/[A-Za-z0-9_\-/]+', html)
-                  seen = set()
-                  for m in matches:
-                      if "/a/" in m or "/a-/" in m or len(m) < 60:
-                          continue
-                      base = m.split("=")[0]
-                      if base not in seen:
-                          seen.add(base)
-                          photos.append(base + "=w1200-h800-no")
-              except Exception as e:
-                  print("Photo fetch error:", e)
-          print(f"Fetched {len(photos)} photos from album")
           with open("public/photos.json", "w") as f:
-              json.dump({"updated": datetime.now(timezone.utc).isoformat(), "photos": photos[:250]}, f)
+              json.dump({"updated": datetime.now(timezone.utc).isoformat(), "photos": photos[:200]}, f)
+          print(f"Fetched {len(photos[:200])} photos from album.")
           EOF
 
-      - name: Package Pages Artifact
-        run: |
-          mkdir -p _artifact
-          tar --dereference --hard-dereference -cvf _artifact/artifact.tar -C public .
-
-      - name: Upload Pages Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: github-pages
-          path: _artifact/artifact.tar
-          retention-days: 1
+      - name: Write version timestamp
+        run: date -u +"%Y%m%dT%H%M%SZ" > public/version.txt
 
       - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
