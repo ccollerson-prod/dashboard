@@ -136,7 +136,6 @@
 </head>
 <body>
 <div class="container">
-  <!-- TOP ROW -->
   <div class="top-row">
     <div class="card mr w-clock">
       <h2>Local Time</h2>
@@ -158,7 +157,6 @@
     </div>
   </div>
 
-  <!-- MIDDLE ROW -->
   <div class="bottom-row">
     <div class="card mr w-cal">
       <h2>Family Calendar (Next 7 Days)</h2>
@@ -188,9 +186,8 @@
     </div>
   </div>
 
-  <!-- BOTTOM UK FOOTBALL TICKER -->
   <div class="ticker-bar">
-    <div class="ticker-badge">⚽ UK Football</div>
+    <div class="ticker-badge">UK Football</div>
     <div class="ticker-wrap">
       <div class="ticker-track" id="football-ticker">Loading Premier League, Championship, League One &amp; Cup scores...</div>
     </div>
@@ -198,7 +195,6 @@
 </div>
 
 <script>
-// 1. CLOCK & CHRISTMAS COUNTDOWN
 function updateClock() {
   var now = new Date();
   var h = ("0" + now.getHours()).slice(-2);
@@ -222,7 +218,6 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
-// 2. OPEN-METEO WEATHER FOR BROUGHTON ASTLEY
 function fetchWeather() {
   var xhr = new XMLHttpRequest();
   xhr.open("GET", "https://api.open-meteo.com/v1/forecast?latitude=52.528&longitude=-1.227&current=temperature_2m,precipitation_probability,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Europe%2FLondon&forecast_days=5", true);
@@ -240,7 +235,7 @@ function fetchWeather() {
         var maxT = Math.round(data.daily.temperature_2m_max[i]);
         var minT = Math.round(data.daily.temperature_2m_min[i]);
         var pop = data.daily.precipitation_probability_max[i];
-        html += '<div class="f-day"><strong>' + dayNames[d.getDay()] + '</strong>' + maxT + '° / ' + minT + '°<br>💧 ' + pop + '%</div>';
+        html += '<div class="f-day"><strong>' + dayNames[d.getDay()] + '</strong>' + maxT + '° / ' + minT + '°<br>Rain ' + pop + '%</div>';
       }
       document.getElementById("forecast-row").innerHTML = html;
     }
@@ -250,7 +245,6 @@ function fetchWeather() {
 fetchWeather();
 setInterval(fetchWeather, 1800000);
 
-// 3. FAMILY CALENDAR (7-DAY ROLLING VIEW)
 function parseIcalDate(str) {
   var y = parseInt(str.substr(0, 4), 10);
   var mo = parseInt(str.substr(4, 2), 10) - 1;
@@ -275,4 +269,242 @@ function fetchCalendar() {
       var now = new Date();
       var startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       var endOfSevenDays = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7);
-      var dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","
+      var dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+      var monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+      var items = [];
+      for (var i = 0; i < data.events.length; i++) {
+        var ev = data.events[i];
+        var parsed = parseIcalDate(ev.start);
+        var evDayZero = new Date(parsed.date.getFullYear(), parsed.date.getMonth(), parsed.date.getDate());
+        if (evDayZero >= startOfToday && evDayZero < endOfSevenDays) {
+          var diffDays = Math.round((evDayZero - startOfToday) / 86400000);
+          items.push({
+            title: ev.title,
+            date: parsed.date,
+            allDay: parsed.allDay,
+            diffDays: diffDays
+          });
+        }
+      }
+      items.sort(function(a, b) { return a.date - b.date; });
+
+      var box = document.getElementById("cal-list");
+      if (items.length === 0) {
+        box.innerHTML = '<div style="color:#94a3b8;font-size:17px;">No events scheduled for the next 7 days.</div>';
+        return;
+      }
+      var html = "";
+      for (var j = 0; j < items.length; j++) {
+        var it = items[j];
+        var dayLabel = "";
+        var cls = "cal-item";
+        if (it.diffDays === 0) {
+          dayLabel = "Today";
+        } else if (it.diffDays === 1) {
+          dayLabel = "Tomorrow";
+          cls += " tomorrow";
+        } else {
+          dayLabel = dayNames[it.date.getDay()] + " " + it.date.getDate() + " " + monthNames[it.date.getMonth()];
+          cls += " upcoming";
+        }
+        var timeTxt = it.allDay ? "All Day" : (("0" + it.date.getHours()).slice(-2) + ":" + ("0" + it.date.getMinutes()).slice(-2));
+        html += '<div class="' + cls + '"><div class="cal-time">' + dayLabel + ' - ' + timeTxt + '</div><div class="cal-title">' + it.title + '</div></div>';
+      }
+      box.innerHTML = html;
+    }
+  };
+  xhr.send();
+}
+fetchCalendar();
+setInterval(fetchCalendar, 300000);
+
+var chores = JSON.parse(localStorage.getItem("family_chores") || '[{"text":"Empty dishwasher","done":false},{"text":"Take bins out","done":false}]');
+function renderChores() {
+  localStorage.setItem("family_chores", JSON.stringify(chores));
+  var html = "";
+  for (var i = 0; i < chores.length; i++) {
+    html += '<div class="chore-item' + (chores[i].done ? ' done' : '') + '">' +
+            '<input type="checkbox" ' + (chores[i].done ? 'checked' : '') + ' onclick="toggleChore(' + i + ')" style="width:22px;height:22px;">' +
+            '<span>' + chores[i].text + '</span>' +
+            '<button class="del-btn" onclick="delChore(' + i + ')">X</button></div>';
+  }
+  document.getElementById("chore-list").innerHTML = html;
+}
+function addChore() {
+  var inp = document.getElementById("chore-input");
+  if (inp.value.trim()) {
+    chores.push({ text: inp.value.trim(), done: false });
+    inp.value = "";
+    renderChores();
+  }
+}
+function toggleChore(i) { chores[i].done = !chores[i].done; renderChores(); }
+function delChore(i) { chores.splice(i, 1); renderChores(); }
+renderChores();
+
+var adultFacts = [
+  "Oxford University is older than the Aztec Empire - teaching began there around 1096, over 200 years before Tenochtitlan was founded.",
+  "Cleopatra lived closer in time to the first Moon landing in 1969 than she did to the construction of the Great Pyramid of Giza.",
+  "Sharks have existed on Earth for roughly 400 million years - making them older than trees and even older than Saturn's rings.",
+  "A day on Venus is longer than a year on Venus; it takes longer to rotate once on its axis than to complete one orbit of the Sun.",
+  "Honey never spoils: archaeologists have found 3,000-year-old pots of honey in ancient Egyptian tombs that were still completely edible.",
+  "The inventor of the microwave oven, Percy Spencer, was awarded just $2 by Raytheon for his discovery in 1945.",
+  "Scotland's official national animal is the unicorn, chosen in the 14th century to symbolize purity, chivalry, and untamed pride.",
+  "There are more possible iterations of a game of chess than there are atoms in the observable universe.",
+  "Wombats are the only known animals in the world that produce cube-shaped droppings, which stops them from rolling away.",
+  "The Eiffel Tower grows up to 15 centimetres taller during the summer due to thermal expansion of the iron.",
+  "Octopuses have three hearts, nine brains, and blue copper-based blood that helps them survive in deep, cold ocean water.",
+  "Nintendo was founded in 1889 in Kyoto, Japan - the same year the Eiffel Tower was completed - originally making handmade playing cards."
+];
+var dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+document.getElementById("fact-text").innerHTML = adultFacts[dayOfYear % adultFacts.length];
+
+var stations = [
+  { name: "Kisstory", url: "https://stream-kiss.planetradio.co.uk/kisstory.mp3" },
+  { name: "BBC Radio Leicester", url: "https://stream.live.vc.bbcmedia.co.uk/bbc_radio_leicester" },
+  { name: "Capital FM", url: "https://media-ice.musicradio.com/CapitalMP3" },
+  { name: "BBC Radio 5 Live", url: "https://stream.live.vc.bbcmedia.co.uk/bbc_radio_five_live" },
+  { name: "BBC Radio 2", url: "https://stream.live.vc.bbcmedia.co.uk/bbc_radio_two" }
+];
+var currentStation = -1;
+var audioEl = document.getElementById("radio-audio");
+
+audioEl.onerror = function() {
+  if (currentStation !== -1) {
+    document.getElementById("radio-status").innerHTML = "Stream unavailable right now (" + stations[currentStation].name + ")";
+    currentStation = -1;
+    renderRadio();
+  }
+};
+
+function renderRadio() {
+  var html = "";
+  for (var i = 0; i < stations.length; i++) {
+    html += '<button class="radio-btn' + (currentStation === i ? ' active' : '') + '" onclick="toggleStation(' + i + ')">' +
+            (currentStation === i ? 'STOP ' : 'PLAY ') + stations[i].name + '</button>';
+  }
+  document.getElementById("radio-grid").innerHTML = html;
+}
+function toggleStation(i) {
+  var status = document.getElementById("radio-status");
+  if (currentStation === i) {
+    audioEl.pause();
+    audioEl.removeAttribute("src");
+    audioEl.load();
+    currentStation = -1;
+    status.innerHTML = "Stopped";
+  } else {
+    currentStation = i;
+    audioEl.src = stations[i].url;
+    status.innerHTML = "Connecting to " + stations[i].name + "...";
+    var playPromise = audioEl.play();
+    if (playPromise !== undefined) {
+      playPromise.then(function() {
+        status.innerHTML = "Playing: " + stations[i].name;
+      }).catch(function(err) {
+        status.innerHTML = "Tap again to start audio (" + err.name + ")";
+      });
+    }
+  }
+  renderRadio();
+}
+renderRadio();
+
+var ukLeagues = [
+  { code: "eng.1", label: "PL" },
+  { code: "eng.2", label: "CHAMP" },
+  { code: "eng.3", label: "L1" },
+  { code: "eng.fa", label: "FA CUP" },
+  { code: "eng.league_cup", label: "EFL CUP" }
+];
+
+function fetchFootballScores() {
+  var results = [];
+  var completed = 0;
+
+  for (var i = 0; i < ukLeagues.length; i++) {
+    (function(league) {
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", "https://site.api.espn.com/apis/site/v2/sports/soccer/" + league.code + "/scoreboard", true);
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+          if (xhr.status === 200) {
+            try {
+              var data = JSON.parse(xhr.responseText);
+              var events = data.events || [];
+              for (var j = 0; j < events.length; j++) {
+                var ev = events[j];
+                var comp = ev.competitions && ev.competitions[0];
+                if (!comp || !comp.competitors || comp.competitors.length < 2) continue;
+                var home = comp.competitors[0].homeAway === "home" ? comp.competitors[0] : comp.competitors[1];
+                var away = comp.competitors[0].homeAway === "away" ? comp.competitors[0] : comp.competitors[1];
+                var state = ev.status && ev.status.type && ev.status.type.state;
+                var detail = (ev.status && ev.status.type && ev.status.type.shortDetail) || "";
+                var hName = home.team.shortDisplayName || home.team.name;
+                var aName = away.team.shortDisplayName || away.team.name;
+
+                var scoreStr = "";
+                if (state === "pre") {
+                  scoreStr = hName + " v " + aName + '<span class="t-status">(' + detail + ')</span>';
+                } else if (state === "in") {
+                  scoreStr = hName + " " + home.score + "-" + away.score + " " + aName + '<span class="t-live">LIVE ' + detail + '</span>';
+                } else {
+                  scoreStr = hName + " " + home.score + "-" + away.score + " " + aName + '<span class="t-status">(' + detail + ')</span>';
+                }
+                results.push('<span class="t-item"><span class="t-comp">[' + league.label + ']</span>' + scoreStr + '</span>');
+              }
+            } catch (e) {}
+          }
+          completed++;
+          if (completed === ukLeagues.length) {
+            var track = document.getElementById("football-ticker");
+            if (results.length > 0) {
+              track.innerHTML = results.join("");
+              var duration = Math.max(30, results.length * 6);
+              track.style.webkitAnimationDuration = duration + "s";
+              track.style.animationDuration = duration + "s";
+            } else {
+              track.innerHTML = "No scheduled matches across Premier League, Championship, League One, or Domestic Cups today.";
+            }
+          }
+        }
+      };
+      xhr.send();
+    })(ukLeagues[i]);
+  }
+}
+fetchFootballScores();
+setInterval(fetchFootballScores, 120000);
+
+var knownVersion = null;
+function checkUpdate() {
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "version.txt?t=" + new Date().getTime(), true);
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState === 4 && xhr.status === 200) {
+      var v = xhr.responseText.trim();
+      if (knownVersion && knownVersion !== v) {
+        window.location.reload();
+      }
+      knownVersion = v;
+    }
+  };
+  xhr.send();
+}
+setInterval(checkUpdate, 60000);
+checkUpdate();
+
+function keepAwake() {
+  if ("wakeLock" in navigator) {
+    navigator.wakeLock.request("screen").catch(function() {});
+  }
+}
+document.addEventListener("visibilitychange", function() {
+  if (document.visibilityState === "visible") keepAwake();
+});
+document.addEventListener("click", keepAwake);
+keepAwake();
+</script>
+</body>
+</html>
