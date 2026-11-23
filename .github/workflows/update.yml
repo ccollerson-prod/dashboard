@@ -63,9 +63,18 @@ jobs:
               json.dump({"updated": datetime.now(timezone.utc).isoformat(), "headlines": headlines}, f)
           EOF
 
-      - uses: actions/upload-pages-artifact@v4
-        with:
-          path: public
+      - name: Package Pages Artifact
+        run: |
+          mkdir -p _artifact
+          tar --dereference --hard-dereference -cvf _artifact/artifact.tar -C public .
 
-      - id: deployment
+      - name: Upload Pages Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-pages
+          path: _artifact/artifact.tar
+          retention-days: 1
+
+      - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
