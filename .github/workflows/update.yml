@@ -27,7 +27,7 @@ jobs:
           cp index.html public/index.html
           date -u +"%Y-%m-%dT%H:%M:%SZ" > public/version.txt
           python3 - << 'EOF'
-          import os, urllib.request, json, re, xml.etree.ElementTree as ET
+          import os, urllib.request, http.cookiejar, json, re, xml.etree.ElementTree as ET
           from datetime import datetime, timezone
 
           # 1. Fetch Private Calendar
@@ -63,24 +63,28 @@ jobs:
           with open("public/news.json", "w") as f:
               json.dump({"updated": datetime.now(timezone.utc).isoformat(), "headlines": headlines}, f)
 
-          # 3. Fetch Google Photos Shared Album URLs
+          # 3. Fetch Google Photos Shared Album URLs (Bypass UK/EU Consent Wall)
           photos_url = os.environ.get("PHOTOS_URL", "").strip()
           photos = []
           if photos_url:
               try:
-                  req = urllib.request.Request(
-                      photos_url,
-                      headers={
-                          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                          "Accept-Language": "en-GB,en;q=0.9"
-                      }
-                  )
-                  html = urllib.request.urlopen(req, timeout=25).read().decode("utf-8", errors="ignore")
+                  cj = http.cookiejar.CookieJar()
+                  opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+                  opener.addheaders = [
+                      ("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"),
+                      ("Accept-Language", "en-GB,en;q=0.9"),
+                      ("Cookie", "SOCS=CAISNQgDEitib3FfaWRlbnRpdHlmcm9udGVuZHVpc2VydmVyXzIwMjMwODI5LjA3X3AxGgJlbiACGgYIgJnPpwY; CONSENT=YES+cb.20210328-17-p0.en+FX+417")
+                  ]
+                  resp = opener.open(photos_url, timeout=25)
+                  final_url = resp.geturl()
+                  html = resp.read().decode("utf-8", errors="ignore")
+                  print("Resolved URL:", final_url[:80])
+
                   html = html.replace("\\u003d", "=").replace("\\/", "/")
                   matches = re.findall(r'https://lh3\.googleusercontent\.com/[A-Za-z0-9_\-/]+', html)
                   seen = set()
                   for m in matches:
-                      if "/a/" in m or "/a-/" in m or len(m) < 65:
+                      if "/a/" in m or "/a-/" in m or len(m) < 60:
                           continue
                       base = m.split("=")[0]
                       if base not in seen:
