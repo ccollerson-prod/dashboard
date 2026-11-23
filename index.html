@@ -829,6 +829,11 @@ function toggleNightOverride() {
 
 setInterval(checkNightMode, 30000);
 checkNightMode();
+
+// 10. REGISTER SERVICE WORKER FOR CHROME PWA INSTALL
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(function() {});
+}
 </script>
 </body>
 </html>
