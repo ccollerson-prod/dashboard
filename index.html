@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Family Dashboard</title>
+<meta name="theme-color" content="#0f172a">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: #0f172a; color: #f8fafc;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .container {
+    display: -webkit-flex; display: flex;
+    -webkit-flex-direction: column; flex-direction: column;
+    width: 100%; height: 100%; padding: 14px 18px 12px 18px;
+  }
+  .top-row {
+    display: -webkit-flex; display: flex;
+    height: 28%; margin-bottom: 14px;
+  }
+  .bottom-row {
+    display: -webkit-flex; display: flex;
+    height: 65%; margin-bottom: 12px;
+  }
+  .ticker-bar {
+    height: 7%; min-height: 44px;
+    background: #1e293b; border: 1px solid #334155;
+    border-radius: 12px; display: -webkit-flex; display: flex;
+    -webkit-align-items: center; align-items: center; overflow: hidden;
+  }
+  .ticker-badge {
+    background: #10b981; color: #0f172a; font-weight: 800;
+    font-size: 13px; letter-spacing: 0.8px; text-transform: uppercase;
+    padding: 0 16px; height: 100%; display: -webkit-flex; display: flex;
+    -webkit-align-items: center; align-items: center; white-space: nowrap;
+  }
+  .ticker-wrap {
+    -webkit-flex: 1; flex: 1; overflow: hidden; white-space: nowrap; position: relative;
+  }
+  .ticker-track {
+    display: inline-block; padding-left: 100%;
+    -webkit-animation: scrollTicker 45s linear infinite;
+    animation: scrollTicker 45s linear infinite;
+    font-size: 17px; color: #f1f5f9;
+  }
+  @-webkit-keyframes scrollTicker {
+    0%   { -webkit-transform: translateX(0); transform: translateX(0); }
+    100% { -webkit-transform: translateX(-100%); transform: translateX(-100%); }
+  }
+  @keyframes scrollTicker {
+    0%   { -webkit-transform: translateX(0); transform: translateX(0); }
+    100% { -webkit-transform: translateX(-100%); transform: translateX(-100%); }
+  }
+  .t-item { display: inline-block; margin-right: 36px; }
+  .t-comp { color: #38bdf8; font-weight: 700; font-size: 13px; margin-right: 6px; }
+  .t-live { color: #fbbf24; font-weight: 700; margin-left: 6px; }
+  .t-status { color: #94a3b8; font-size: 14px; margin-left: 6px; }
+  .t-fav { color: #fbbf24; font-weight: 800; background: rgba(251, 191, 36, 0.14); padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(251, 191, 36, 0.45); }
+
+  .card {
+    background: #1e293b; border: 1px solid #334155;
+    border-radius: 16px; padding: 16px 20px;
+    display: -webkit-flex; display: flex;
+    -webkit-flex-direction: column; flex-direction: column;
+    overflow: hidden;
+  }
+  .mr { margin-right: 16px; }
+  .w-clock { width: 34%; }
+  .w-weather { width: 42%; }
+  .w-xmas { width: 24%; text-align: center; -webkit-justify-content: center; justify-content: center; }
+
+  .w-cal { width: 33%; }
+  .w-photos { width: 35%; padding: 0; position: relative; background: #0f172a; }
+  .w-right { width: 32%; display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column; }
+
+  h2 {
+    font-size: 14px; text-transform: uppercase; letter-spacing: 1.2px;
+    color: #94a3b8; margin-bottom: 10px; border-bottom: 1px solid #334155; padding-bottom: 5px;
+  }
+  #clock { font-size: 64px; font-weight: 700; line-height: 1; color: #38bdf8; }
+  #date { font-size: 21px; color: #cbd5e1; margin-top: 8px; }
+
+  .weather-now { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; margin-bottom: 10px; }
+  #temp-now { font-size: 44px; font-weight: 700; margin-right: 18px; color: #fbbf24; }
+  #weather-desc { font-size: 17px; color: #e2e8f0; }
+  .forecast-row { display: -webkit-flex; display: flex; -webkit-justify-content: space-between; justify-content: space-between; margin-top: auto; }
+  .f-day {
+    background: #0f172a; border-radius: 10px; padding: 7px 8px;
+    width: 23.5%; text-align: center; font-size: 14px;
+  }
+  .f-day strong { display: block; color: #38bdf8; margin-bottom: 3px; }
+
+  #xmas-days { font-size: 52px; font-weight: 800; color: #f43f5e; line-height: 1.05; }
+  .xmas-label { font-size: 17px; color: #cbd5e1; margin-top: 4px; }
+
+  .list-scroll { overflow-y: auto; -webkit-flex: 1; flex: 1; }
+  .cal-item {
+    background: #0f172a; border-left: 4px solid #38bdf8;
+    padding: 8px 12px; border-radius: 8px; margin-bottom: 8px;
+  }
+  .cal-item.tomorrow { border-left-color: #a78bfa; }
+  .cal-item.upcoming { border-left-color: #34d399; }
+  .cal-time { font-size: 13px; color: #94a3b8; font-weight: 600; }
+  .cal-title { font-size: 17px; color: #f8fafc; margin-top: 2px; }
+
+  /* Center Photo Frame */
+  .photo-stage {
+    position: relative; width: 100%; height: 100%;
+    overflow: hidden; background: #090d16;
+  }
+  .photo-slide {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    object-fit: cover; opacity: 0;
+    -webkit-transition: opacity 1.2s ease-in-out;
+    transition: opacity 1.2s ease-in-out;
+  }
+  .photo-slide.visible { opacity: 1; }
+  .photo-badge {
+    position: absolute; bottom: 10px; right: 12px; z-index: 3;
+    background: rgba(15, 23, 42, 0.75); color: #cbd5e1;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.8px;
+    text-transform: uppercase; padding: 4px 10px; border-radius: 6px;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+  }
+  #photo-empty {
+    position: absolute; top: 50%; left: 50%;
+    -webkit-transform: translate(-50%, -50%); transform: translate(-50%, -50%);
+    color: #94a3b8; font-size: 16px; text-align: center; width: 85%;
+  }
+
+  /* Right Column: Spotify + Radio */
+  .spotify-card {
+    height: 41%; margin-bottom: 14px; padding: 0;
+    background: #121212; border-radius: 16px; overflow: hidden;
+  }
+  .spotify-card iframe {
+    width: 100%; height: 100%; border: 0; border-radius: 16px;
+  }
+
+  .radio-card { height: 59%; }
+  .radio-grid { display: -webkit-flex; display: flex; -webkit-flex-wrap: wrap; flex-wrap: wrap; }
+  .radio-btn {
+    -webkit-appearance: none; appearance: none;
+    width: 48%; margin: 1%; padding: 9px 6px;
+    border-width: 2px; border-style: solid;
+    border-radius: 10px; font-size: 14px; font-weight: 700; text-align: center;
+    letter-spacing: 0.3px; opacity: 0.92;
+    -webkit-transition: transform 0.1s ease, opacity 0.15s ease;
+    transition: transform 0.1s ease, opacity 0.15s ease;
+  }
+  .st-capital  { background-color: #005eb8; color: #ffffff; border-color: #38bdf8; }
+  .st-xtra     { background-color: #111827; color: #22c55e; border-color: #22c55e; }
+  .st-heart    { background-color: #e11d48; color: #ffffff; border-color: #fda4af; }
+  .st-heart90s { background-color: #c026d3; color: #fef08a; border-color: #fef08a; }
+  .st-radiox   { background-color: #18181b; color: #10b981; border-color: #10b981; }
+  .st-smooth   { background-color: #6d28d9; color: #ffffff; border-color: #c4b5fd; }
+
+  .radio-btn.active {
+    opacity: 1;
+    border-color: #ffffff;
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+  }
+  .vol-row {
+    display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+    margin-top: 6px; background: #0f172a; padding: 6px 12px; border-radius: 10px;
+  }
+  .vol-label { font-size: 13px; font-weight: 700; color: #94a3b8; margin-right: 10px; min-width: 68px; }
+  #vol-slider {
+    -webkit-flex: 1; flex: 1; height: 8px; border-radius: 5px;
+    background: #334155; outline: none; -webkit-appearance: none;
+  }
+  #vol-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #38bdf8; cursor: pointer;
+  }
+  #radio-status { font-size: 12px; color: #94a3b8; margin-top: 5px; }
+
+  /* Automatic Night Dimmer (10 PM - 7 AM) */
+  #night-dimmer {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.72);
+    pointer-events: none; z-index: 9998;
+    opacity: 0;
+    -webkit-transition: opacity 1.5s ease;
+    transition: opacity 1.5s ease;
+  }
+  #night-dimmer.active { opacity: 1; }
+
+  #night-pill {
+    position: fixed; top: 8px; right: 14px; z-index: 9999;
+    background: rgba(15, 23, 42, 0.85); color: #94a3b8;
+    border: 1px solid #334155; border-radius: 20px;
+    padding: 4px 10px; font-size: 11px; font-weight: 700;
+    display: none;
+  }
+</style>
+</head>
+<body>
+<div id="night-dimmer"></div>
+<div id="night-pill" onclick="toggleNightOverride()">Night Dim: ON (Tap to Brighten)</div>
+<div class="container">
+  <div class="top-row">
+    <div class="card mr w-clock">
+      <h2>Local Time</h2>
+      <div id="clock">--:--</div>
+      <div id="date">Loading date...</div>
+    </div>
+    <div class="card mr w-weather">
+      <h2>Broughton Astley Weather</h2>
+      <div class="weather-now">
+        <div id="temp-now">--°C</div>
+        <div id="weather-desc">Loading forecast...</div>
+      </div>
+      <div class="forecast-row" id="forecast-row"></div>
+    </div>
+    <div class="card w-xmas">
+      <h2>Countdown to Christmas</h2>
+      <div id="xmas-days">--</div>
+      <div class="xmas-label" id="xmas-sub">days to go</div>
+    </div>
+  </div>
+
+  <div class="bottom-row">
+    <div class="card mr w-cal">
+      <h2>Family Calendar (Next 7 Days)</h2>
+      <div class="list-scroll" id="cal-list">Loading events...</div>
+    </div>
+
+    <div class="card mr w-photos" onclick="nextPhoto()">
+      <div class="photo-stage">
+        <img id="photo-a" class="photo-slide" alt="">
+        <img id="photo-b" class="photo-slide" alt="">
+        <div id="photo-empty">Loading family photos...</div>
+        <div class="photo-badge" id="photo-counter">Family Photos</div>
+      </div>
+    </div>
+
+    <div class="w-right">
+      <div class="card spotify-card">
+        <iframe src="https://open.spotify.com/embed/playlist/0WzaQ6bi9zYNJvuWXpxKHF?utm_source=generator&theme=0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+      </div>
+      <div class="card radio-card">
+        <h2>UK Radio Player</h2>
+        <div class="radio-grid" id="radio-grid"></div>
+        <div class="vol-row">
+          <span class="vol-label" id="vol-label">VOL 80%</span>
+          <input type="range" id="vol-slider" min="0" max="100" value="80" oninput="setVolume(this.value)" onchange="setVolume(this.value)">
+        </div>
+        <div id="radio-status">Tap a station to play</div>
+        <audio id="radio-audio" preload="none"></audio>
+      </div>
+    </div>
+  </div>
+
+  <div class="ticker-bar">
+    <div class="ticker-badge">UK Football</div>
+    <div class="ticker-wrap">
+      <div class="ticker-track" id="football-ticker">Loading Premier League, Championship, League One &amp; Cup scores...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// 1. LOCAL CLOCK & CHRISTMAS COUNTDOWN
+function updateClock() {
+  var now = new Date();
+  var h = ("0" + now.getHours()).slice(-2);
+  var m = ("0" + now.getMinutes()).slice(-2);
+  document.getElementById("clock").innerHTML = h + ":" + m;
+
+  var days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  var months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  document.getElementById("date").innerHTML = days[now.getDay()] + ", " + now.getDate() + " " + months[now.getMonth()] + " " + now.getFullYear();
+
+  var year = now.getFullYear();
+  var xmas = new Date(year, 11, 25);
+  if (now.getMonth() === 11 && now.getDate() > 25) {
+    xmas = new Date(year + 1, 11, 25);
+  }
+  var todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  var diffDays = Math.round((xmas - todayZero) / 86400000);
+  document.getElementById("xmas-days").innerHTML = diffDays === 0 ? "Today!" : diffDays;
+  document.getElementById("xmas-sub").innerHTML = diffDays === 1 ? "day until Christmas" : "days until Christmas";
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// 2. OPEN-METEO WEATHER FOR BROUGHTON ASTLEY
+function fetchWeather() {
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "https://api.open-meteo.com/v1/forecast?latitude=52.528&longitude=-1.227&current=temperature_2m,precipitation_probability,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Europe%2FLondon&forecast_days=5", true);
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState === 4 && xhr.status === 200) {
+      var data = JSON.parse(xhr.responseText);
+      document.getElementById("temp-now").innerHTML = Math.round(data.current.temperature_2m) + "°C";
+      var rainNow = data.current.precipitation_probability || 0;
+      document.getElementById("weather-desc").innerHTML = "Rain chance: " + rainNow + "%<br>Broughton Astley, LE9";
+
+      var html = "";
+      var dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+      for (var i = 1; i <= 4; i++) {
+        var d = new Date(data.daily.time[i]);
+        var maxT = Math.round(data.daily.temperature_2m_max[i]);
+        var minT = Math.round(data.daily.temperature_2m_min[i]);
+        var pop = data.daily.precipitation_probability_max[i];
+        html += '<div class="f-day"><strong>' + dayNames[d.getDay()] + '</strong>' + maxT + '° / ' + minT + '°<br>Rain ' + pop + '%</div>';
+      }
+      document.getElementById("forecast-row").innerHTML = html;
+    }
+  };
+  xhr.send();
+}
+fetchWeather();
+setInterval(fetchWeather, 1800000);
+
+// 3. FAMILY CALENDAR (7-DAY ROLLING VIEW)
+function parseIcalDate(str) {
+  var y = parseInt(str.substr(0, 4), 10);
+  var mo = parseInt(str.substr(4, 2), 10) - 1;
+  var d = parseInt(str.substr(6, 2), 10);
+  if (str.length >= 15) {
+    var h = parseInt(str.substr(9, 2), 10);
+    var mi = parseInt(str.substr(11, 2), 10);
+    if (str.indexOf("Z") !== -1) {
+      return { date: new Date(Date.UTC(y, mo, d, h, mi)), allDay: false };
+    }
+    return { date: new Date(y, mo, d, h, mi), allDay: false };
+  }
+  return { date: new Date(y, mo, d), allDay: true };
+}
+
+function fetchCalendar() {
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "events.json?t=" + new Date().getTime(), true);
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState === 4 && xhr.status === 200) {
+      var data = JSON.parse(xhr.responseText);
+      var now = new Date();
+      var startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      var endOfSevenDays = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7);
+      var dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+      var monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+      var items = [];
+      for (var i = 0; i < data.events.length; i++) {
+        var ev = data.events[i];
+        var parsed = parseIcalDate(ev.start);
+        var evDayZero = new Date(parsed.date.getFullYear(), parsed.date.getMonth(), parsed.date.getDate());
+        if (evDayZero >= startOfToday && evDayZero < endOfSevenDays) {
+          var diffDays = Math.round((evDayZero - startOfToday) / 86400000);
+          items.push({
+            title: ev.title,
+            date: parsed.date,
+            allDay: parsed.allDay,
+            diffDays: diffDays
+          });
+        }
+      }
+      items.sort(function(a, b) { return a.date - b.date; });
+
+      var box = document.getElementById("cal-list");
+      if (items.length === 0) {
+        box.innerHTML = '<div style="color:#94a3b8;font-size:17px;">No events scheduled for the next 7 days.</div>';
+        return;
+      }
+      var html = "";
+      for (var j = 0; j < items.length; j++) {
+        var it = items[j];
+        var dayLabel = "";
+        var cls = "cal-item";
+        if (it.diffDays === 0) {
+          dayLabel = "Today";
+        } else if (it.diffDays === 1) {
+          dayLabel = "Tomorrow";
+          cls += " tomorrow";
+        } else {
+          dayLabel = dayNames[it.date.getDay()] + " " + it.date.getDate() + " " + monthNames[it.date.getMonth()];
+          cls += " upcoming";
+        }
+        var timeTxt = it.allDay ? "All Day" : (("0" + it.date.getHours()).slice(-2) + ":" + ("0" + it.date.getMinutes()).slice(-2));
+        html += '<div class="' + cls + '"><div class="cal-time">' + dayLabel + ' - ' + timeTxt + '</div><div class="cal-title">' + it.title + '</div></div>';
+      }
+      box.innerHTML = html;
+    }
+  };
+  xhr.send();
+}
+fetchCalendar();
+setInterval(fetchCalendar, 300000);
+
+// 4. GOOGLE PHOTOS SHARED ALBUM SLIDESHOW (True Random Shuffle - Tap to Skip)
+var photoList = [];
+var photoIdx = 0;
+var activeImgLayer = "a";
+
+function shuffleArray(arr) {
+  var copy = arr.slice();
+  for (var i = copy.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = copy[i];
+    copy[i] = copy[j];
+    copy[j] = tmp;
+  }
+  return copy;
+}
+
+function showPhoto(index) {
+  if (!photoList || photoList.length === 0) return;
+  var safeIdx = ((index % photoList.length) + photoList.length) % photoList.length;
+  var url = photoList[safeIdx];
+  var imgA = document.getElementById("photo-a");
+  var imgB = document.getElementById("photo-b");
+  var incoming = activeImgLayer === "a" ? imgB : imgA;
+  var outgoing = activeImgLayer === "a" ? imgA : imgB;
+
+  incoming.onload = function() {
+    var emptyEl = document.getElementById("photo-empty");
+    if (emptyEl) emptyEl.style.display = "none";
+    incoming.className = "photo-slide visible";
+    outgoing.className = "photo-slide";
+    activeImgLayer = activeImgLayer === "a" ? "b" : "a";
+    var counterEl = document.getElementById("photo-counter");
+    if (counterEl) {
+      counterEl.innerHTML = (safeIdx + 1) + " / " + photoList.length;
+    }
+  };
+  incoming.src = url;
+}
+
+function nextPhoto() {
+  if (!photoList || photoList.length === 0) return;
+  photoIdx++;
+  if (photoIdx >= photoList.length) {
+    photoList = shuffleArray(photoList);
+    photoIdx = 0;
+  }
+  showPhoto(photoIdx);
+}
+
+function fetchPhotos() {
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "photos.json?t=" + new Date().getTime(), true);
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState === 4 && xhr.status === 200) {
+      try {
+        var data = JSON.parse(xhr.responseText);
+        var list = data.photos || [];
+        if (list.length > 0) {
+          var isFirstLoad = (photoList.length === 0);
+          photoList = shuffleArray(list);
+          photoIdx = 0;
+          if (isFirstLoad) {
+            showPhoto(0);
+          }
+        } else {
+          document.getElementById("photo-empty").innerHTML = "No photos found in shared album.";
+        }
+      } catch (e) {}
+    }
+  };
+  xhr.send();
+}
+fetchPhotos();
+setInterval(nextPhoto, 15000);
+setInterval(fetchPhotos, 1800000);
+
+// 5. ALL-INLINE UK RADIO PLAYER + BRAND COLORS + VOLUME SLIDER
+var stations = [
+  { name: "Capital FM",   cls: "st-capital",  url: "https://media-ice.musicradio.com/CapitalMP3" },
+  { name: "Capital XTRA", cls: "st-xtra",     url: "https://media-ice.musicradio.com/CapitalXTRANationalMP3" },
+  { name: "Heart UK",     cls: "st-heart",    url: "https://media-ice.musicradio.com/HeartUKMP3" },
+  { name: "Heart 90s",    cls: "st-heart90s", url: "https://media-ice.musicradio.com/Heart90sMP3" },
+  { name: "Radio X",      cls: "st-radiox",   url: "https://media-ice.musicradio.com/RadioXUKMP3" },
+  { name: "Smooth UK",    cls: "st-smooth",   url: "https://media-ice.musicradio.com/SmoothUKMP3" }
+];
+var currentStation = -1;
+var audioEl = document.getElementById("radio-audio");
+
+var savedVol = parseInt(localStorage.getItem("radio_vol") || "80", 10);
+audioEl.volume = savedVol / 100;
+document.getElementById("vol-slider").value = savedVol;
+document.getElementById("vol-label").innerHTML = "VOL " + savedVol + "%";
+
+function setVolume(val) {
+  var v = parseInt(val, 10);
+  audioEl.volume = v / 100;
+  document.getElementById("vol-label").innerHTML = "VOL " + v + "%";
+  localStorage.setItem("radio_vol", v);
+}
+
+function stopStream() {
+  audioEl.pause();
+  audioEl.removeAttribute("src");
+  audioEl.load();
+}
+
+audioEl.onerror = function() {
+  if (currentStation !== -1) {
+    document.getElementById("radio-status").innerHTML = "Stream unavailable (" + stations[currentStation].name + ")";
+    currentStation = -1;
+    renderRadio();
+  }
+};
+
+function renderRadio() {
+  var html = "";
+  for (var i = 0; i < stations.length; i++) {
+    var st = stations[i];
+    var isPlaying = (currentStation === i);
+    html += '<button type="button" class="radio-btn ' + st.cls + (isPlaying ? ' active' : '') + '" onclick="toggleStation(' + i + ')">' +
+            (isPlaying ? '■ ' : '▶ ') + st.name + '</button>';
+  }
+  document.getElementById("radio-grid").innerHTML = html;
+}
+
+function toggleStation(i) {
+  var status = document.getElementById("radio-status");
+  if (currentStation === i) {
+    stopStream();
+    currentStation = -1;
+    status.innerHTML = "Stopped";
+    renderRadio();
+    return;
+  }
+
+  stopStream();
+  currentStation = i;
+  audioEl.src = stations[i].url;
+  status.innerHTML = "Connecting to " + stations[i].name + "...";
+  renderRadio();
+
+  var playPromise = audioEl.play();
+  if (playPromise !== undefined) {
+    playPromise.then(function() {
+      status.innerHTML = "Playing: " + stations[i].name;
+    }).catch(function(err) {
+      status.innerHTML = "Tap again to start audio (" + err.name + ")";
+    });
+  }
+}
+renderRadio();
+
+// 6. LIVE UK FOOTBALL SCORES TICKER (Today's Fixtures + Other Competitions + LCFC Pin)
+var ukLeagues = [
+  { code: "eng.1", label: "PL", hasTable: true },
+  { code: "eng.2", label: "CHAMP", hasTable: true },
+  { code: "eng.3", label: "L1", hasTable: true },
+  { code: "eng.fa", label: "FA CUP", hasTable: false },
+  { code: "eng.league_cup", label: "EFL CUP", hasTable: false }
+];
+
+function getOrdinal(n) {
+  var num = parseInt(n, 10);
+  if (isNaN(num)) return n;
+  var s = ["th", "st", "nd", "rd"];
+  var v = num % 100;
+  return num + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function formatUkKickoff(isoStr) {
+  if (!isoStr) return "";
+  var d = new Date(isoStr);
+  if (isNaN(d.getTime())) return "";
+  var days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  var hh = ("0" + d.getHours()).slice(-2);
+  var mm = ("0" + d.getMinutes()).slice(-2);
+  return days[d.getDay()] + " " + d.getDate() + " " + months[d.getMonth()] + ", " + hh + ":" + mm;
+}
+
+function fmtYMD(d) {
+  return d.getFullYear() + ("0" + (d.getMonth() + 1)).slice(-2) + ("0" + d.getDate()).slice(-2);
+}
+
+function formatMatchLine(leagueLabel, ev, home, away, showFullDate) {
+  var state = ev.status && ev.status.type && ev.status.type.state;
+  var detail = (ev.status && ev.status.type && ev.status.type.shortDetail) || "";
+  var hName = (home.team && (home.team.shortDisplayName || home.team.name)) || "Home";
+  var aName = (away.team && (away.team.shortDisplayName || away.team.name)) || "Away";
+  var hScore = (home.score !== undefined && home.score !== null) ? home.score : "";
+  var aScore = (away.score !== undefined && away.score !== null) ? away.score : "";
+
+  var scoreStr = "";
+  if (state === "pre") {
+    var ko = formatUkKickoff(ev.date);
+    var timePart = showFullDate ? ko : (ko ? ko.split(", ")[1] : detail);
+    scoreStr = hName + " v " + aName + '<span class="t-status">(' + timePart + ')</span>';
+  } else if (state === "in") {
+    scoreStr = hName + " " + hScore + "-" + aScore + " " + aName + '<span class="t-live">LIVE ' + detail + '</span>';
+  } else {
+    var datePrefix = showFullDate ? (formatUkKickoff(ev.date).split(", ")[0] + " ") : "";
+    scoreStr = hName + " " + hScore + "-" + aScore + " " + aName + '<span class="t-status">(' + datePrefix + detail + ')</span>';
+  }
+  return '<span class="t-comp">[' + leagueLabel + ']</span>' + scoreStr;
+}
+
+function fetchFootballScores() {
+  var favToday = [];
+  var todayOther = [];
+  var fallbackFixtures = [];
+  var nextLcfcObj = null;
+  var lcfcStandingTag = "";
+
+  var tableLeagues = [];
+  for (var t = 0; t < ukLeagues.length; t++) {
+    if (ukLeagues[t].hasTable) tableLeagues.push(ukLeagues[t]);
+  }
+
+  var totalRequests = ukLeagues.length + tableLeagues.length;
+  var completed = 0;
+
+  var now = new Date();
+  var todayYMD = fmtYMD(now);
+
+  function finishTicker() {
+    var lead = [];
+    if (favToday.length > 0) {
+      for (var f = 0; f < favToday.length; f++) {
+        lead.push('<span class="t-item t-fav">' + favToday[f] + lcfcStandingTag + '</span>');
+      }
+    } else if (nextLcfcObj) {
+      lead.push('<span class="t-item t-fav">' + nextLcfcObj.html + lcfcStandingTag + '</span>');
+    } else if (lcfcStandingTag) {
+      lead.push('<span class="t-item t-fav"><span class="t-comp">[LCFC]</span>Leicester City' + lcfcStandingTag + '</span>');
+    }
+
+    var pool = todayOther.length > 0 ? todayOther : fallbackFixtures;
+    var allItems = lead.concat(pool);
+    var track = document.getElementById("football-ticker");
+    if (allItems.length > 0) {
+      track.innerHTML = allItems.join("");
+      var duration = Math.max(30, allItems.length * 5);
+      track.style.webkitAnimationDuration = duration + "s";
+      track.style.animationDuration = duration + "s";
+    } else {
+      track.innerHTML = "No fixtures available right now across Premier League, Championship, League One, or Domestic Cups.";
+    }
+  }
+
+  // A. Fetch Today's Scoreboard Per League + Default/Upcoming Feed for Next LCFC & Other Matches
+  for (var i = 0; i < ukLeagues.length; i++) {
+    (function(league) {
+      var todayXhr = new XMLHttpRequest();
+      todayXhr.open("GET", "https://site.api.espn.com/apis/site/v2/sports/soccer/" + league.code + "/scoreboard?dates=" + todayYMD, true);
+      todayXhr.onreadystatechange = function() {
+        if (todayXhr.readyState === 4) {
+          if (todayXhr.status === 200) {
+            try {
+              var data = JSON.parse(todayXhr.responseText);
+              var events = data.events || [];
+              for (var j = 0; j < events.length; j++) {
+                var ev = events[j];
+                var comp = ev.competitions && ev.competitions[0];
+                if (!comp || !comp.competitors || comp.competitors.length < 2) continue;
+                var home = comp.competitors[0].homeAway === "home" ? comp.competitors[0] : comp.competitors[1];
+                var away = comp.competitors[0].homeAway === "away" ? comp.competitors[0] : comp.competitors[1];
+                var hName = (home.team && (home.team.shortDisplayName || home.team.name)) || "";
+                var aName = (away.team && (away.team.shortDisplayName || away.team.name)) || "";
+                var isFav = (hName.toLowerCase().indexOf("leicester") !== -1 || aName.toLowerCase().indexOf("leicester") !== -1);
+
+                var line = formatMatchLine(league.label, ev, home, away, false);
+                if (isFav) {
+                  favToday.push(line);
+                } else {
+                  todayOther.push('<span class="t-item">' + line + '</span>');
+                }
+              }
+            } catch (e) {}
+          }
+
+          var defXhr = new XMLHttpRequest();
+          defXhr.open("GET", "https://site.api.espn.com/apis/site/v2/sports/soccer/" + league.code + "/scoreboard", true);
+          defXhr.onreadystatechange = function() {
+            if (defXhr.readyState === 4) {
+              if (defXhr.status === 200) {
+                try {
+                  var dData = JSON.parse(defXhr.responseText);
+                  var dEvents = dData.events || [];
+                  for (var m = 0; m < dEvents.length; m++) {
+                    var dev = dEvents[m];
+                    var dComp = dev.competitions && dev.competitions[0];
+                    if (!dComp || !dComp.competitors || dComp.competitors.length < 2) continue;
+                    var dHome = dComp.competitors[0].homeAway === "home" ? dComp.competitors[0] : dComp.competitors[1];
+                    var dAway = dComp.competitors[0].homeAway === "away" ? dComp.competitors[0] : dComp.competitors[1];
+                    var dhName = (dHome.team && (dHome.team.shortDisplayName || dHome.team.name)) || "";
+                    var daName = (dAway.team && (dAway.team.shortDisplayName || dAway.team.name)) || "";
+                    var dState = dev.status && dev.status.type && dev.status.type.state;
+                    var isFavMatch = (dhName.toLowerCase().indexOf("leicester") !== -1 || daName.toLowerCase().indexOf("leicester") !== -1);
+
+                    if (isFavMatch && dState === "pre") {
+                      var evMs = new Date(dev.date).getTime();
+                      if (!isNaN(evMs) && (!nextLcfcObj || evMs < nextLcfcObj.ms)) {
+                        nextLcfcObj = {
+                          ms: evMs,
+                          html: formatMatchLine("NEXT " + league.label, dev, dHome, dAway, true)
+                        };
+                      }
+                    } else if (!isFavMatch && fallbackFixtures.length < 18) {
+                      fallbackFixtures.push('<span class="t-item">' + formatMatchLine(league.label, dev, dHome, dAway, true) + '</span>');
+                    }
+                  }
+                } catch (e) {}
+              }
+              completed++;
+              if (completed === totalRequests) finishTicker();
+            }
+          };
+          defXhr.send();
+        }
+      };
+      todayXhr.send();
+    })(ukLeagues[i]);
+  }
+
+  // B. Fetch Standings Tables to Find Leicester City's Current Position & Points
+  for (var k = 0; k < tableLeagues.length; k++) {
+    (function(league) {
+      var sXhr = new XMLHttpRequest();
+      sXhr.open("GET", "https://site.api.espn.com/apis/site/v2/sports/soccer/" + league.code + "/standings", true);
+      sXhr.onreadystatechange = function() {
+        if (sXhr.readyState === 4) {
+          if (sXhr.status === 200) {
+            try {
+              var stData = JSON.parse(sXhr.responseText);
+              var children = stData.children || [stData];
+              for (var c = 0; c < children.length; c++) {
+                var entries = (children[c].standings && children[c].standings.entries) || [];
+                for (var e = 0; e < entries.length; e++) {
+                  var entry = entries[e];
+                  var tName = (entry.team && (entry.team.displayName || entry.team.name || "")).toLowerCase();
+                  if (tName.indexOf("leicester") !== -1) {
+                    var rankVal = "";
+                    var ptsVal = "";
+                    var stats = entry.stats || [];
+                    for (var st = 0; st < stats.length; st++) {
+                      if (stats[st].name === "rank") rankVal = stats[st].displayValue || stats[st].value;
+                      if (stats[st].name === "points") ptsVal = stats[st].displayValue || Math.round(stats[st].value);
+                    }
+                    if (rankVal && ptsVal !== "") {
+                      lcfcStandingTag = '<span class="t-status" style="color:#fde68a;font-weight:700;"> • ' + getOrdinal(rankVal) + ' (' + ptsVal + ' pts)</span>';
+                    }
+                  }
+                }
+              }
+            } catch (e) {}
+          }
+          completed++;
+          if (completed === totalRequests) finishTicker();
+        }
+      };
+      sXhr.send();
+    })(tableLeagues[k]);
+  }
+}
+fetchFootballScores();
+setInterval(fetchFootballScores, 120000);
+
+// 7. SILENT AUTO-UPDATE WITHOUT DROPPING FULL SCREEN
+var knownVersion = null;
+function checkUpdate() {
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "version.txt?t=" + new Date().getTime(), true);
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState === 4 && xhr.status === 200) {
+      var v = xhr.responseText.trim();
+      if (knownVersion && knownVersion !== v) {
+        window.location.reload();
+      }
+      knownVersion = v;
+    }
+  };
+  xhr.send();
+}
+setInterval(checkUpdate, 60000);
+checkUpdate();
+
+// 8. SCREEN WAKE LOCK
+function keepAwake() {
+  if ("wakeLock" in navigator) {
+    navigator.wakeLock.request("screen").catch(function() {});
+  }
+}
+document.addEventListener("visibilitychange", function() {
+  if (document.visibilityState === "visible") keepAwake();
+});
+document.addEventListener("click", keepAwake);
+keepAwake();
+
+// 9. AUTOMATIC NIGHT DIMMER (22:00 TO 07:00 WITH TAP OVERRIDE)
+var nightOverride = false;
+var lastNightState = false;
+
+function checkNightMode() {
+  var hr = new Date().getHours();
+  var isNight = (hr >= 22 || hr < 7);
+  if (isNight !== lastNightState) {
+    nightOverride = false;
+    lastNightState = isNight;
+  }
+  var dimmer = document.getElementById("night-dimmer");
+  var pill = document.getElementById("night-pill");
+  if (!dimmer || !pill) return;
+
+  if (isNight) {
+    pill.style.display = "block";
+    if (nightOverride) {
+      dimmer.className = "";
+      pill.innerHTML = "Night Dim: PAUSED (Tap to Dim)";
+    } else {
+      dimmer.className = "active";
+      pill.innerHTML = "Night Dim: ON (Tap to Brighten)";
+    }
+  } else {
+    dimmer.className = "";
+    pill.style.display = "none";
+  }
+}
+
+function toggleNightOverride() {
+  nightOverride = !nightOverride;
+  checkNightMode();
+}
+
+setInterval(checkNightMode, 30000);
+checkNightMode();
+</script>
+</body>
+</html>
