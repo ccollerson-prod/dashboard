@@ -67,9 +67,9 @@
     overflow: hidden;
   }
   .mr { margin-right: 16px; }
-  .w-clock { width: 34%; }
-  .w-weather { width: 42%; }
-  .w-xmas { width: 24%; text-align: center; -webkit-justify-content: center; justify-content: center; }
+  .w-clock { width: 32%; }
+  .w-weather { width: 36%; }
+  .w-photos { width: 32%; padding: 0; position: relative; background: #0f172a; }
   .w-cal { width: 34%; }
   .w-chores { width: 34%; }
   .w-right { width: 32%; display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column; }
@@ -79,20 +79,42 @@
     color: #94a3b8; margin-bottom: 10px; border-bottom: 1px solid #334155; padding-bottom: 5px;
   }
   #clock { font-size: 64px; font-weight: 700; line-height: 1; color: #38bdf8; }
-  #date { font-size: 21px; color: #cbd5e1; margin-top: 8px; }
+  #date { font-size: 20px; color: #cbd5e1; margin-top: 8px; }
 
   .weather-now { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; margin-bottom: 10px; }
   #temp-now { font-size: 44px; font-weight: 700; margin-right: 18px; color: #fbbf24; }
-  #weather-desc { font-size: 17px; color: #e2e8f0; }
+  #weather-desc { font-size: 16px; color: #e2e8f0; }
   .forecast-row { display: -webkit-flex; display: flex; -webkit-justify-content: space-between; justify-content: space-between; margin-top: auto; }
   .f-day {
-    background: #0f172a; border-radius: 10px; padding: 7px 8px;
-    width: 23.5%; text-align: center; font-size: 14px;
+    background: #0f172a; border-radius: 10px; padding: 7px 6px;
+    width: 23.5%; text-align: center; font-size: 13px;
   }
   .f-day strong { display: block; color: #38bdf8; margin-bottom: 3px; }
 
-  #xmas-days { font-size: 52px; font-weight: 800; color: #f43f5e; line-height: 1.05; }
-  .xmas-label { font-size: 17px; color: #cbd5e1; margin-top: 4px; }
+  /* Always-On Photo Frame */
+  .photo-stage {
+    position: relative; width: 100%; height: 100%;
+    overflow: hidden; background: #090d16;
+  }
+  .photo-slide {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    object-fit: cover; opacity: 0;
+    -webkit-transition: opacity 1.2s ease-in-out;
+    transition: opacity 1.2s ease-in-out;
+  }
+  .photo-slide.visible { opacity: 1; }
+  .photo-badge {
+    position: absolute; bottom: 8px; right: 10px; z-index: 3;
+    background: rgba(15, 23, 42, 0.72); color: #cbd5e1;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
+    text-transform: uppercase; padding: 3px 8px; border-radius: 6px;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+  }
+  #photo-empty {
+    position: absolute; top: 50%; left: 50%;
+    -webkit-transform: translate(-50%, -50%); transform: translate(-50%, -50%);
+    color: #94a3b8; font-size: 14px; text-align: center; width: 85%;
+  }
 
   .list-scroll { overflow-y: auto; -webkit-flex: 1; flex: 1; }
   .cal-item {
@@ -121,7 +143,7 @@
   .chore-item span { -webkit-flex: 1; flex: 1; margin-left: 10px; }
   .del-btn { background: none; border: none; color: #ef4444; font-size: 18px; padding: 0 6px; }
 
-  .news-card { height: 42%; margin-bottom: 14px; }
+  .news-card { height: 40%; margin-bottom: 14px; }
   .news-card h2 { color: #f87171; }
   .news-item {
     font-size: 15px; line-height: 1.35; color: #e2e8f0;
@@ -129,7 +151,23 @@
   }
   .news-item:last-child { border-bottom: none; }
 
-  .radio-card { height: 58%; }
+  .radio-card { height: 60%; }
+  .audio-header {
+    display: -webkit-flex; display: flex;
+    -webkit-justify-content: space-between; justify-content: space-between;
+    -webkit-align-items: center; align-items: center;
+    border-bottom: 1px solid #334155; padding-bottom: 6px; margin-bottom: 8px;
+  }
+  .audio-header h2 { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .audio-tabs { display: -webkit-flex; display: flex; }
+  .tab-btn {
+    background: #0f172a; border: 1px solid #475569; color: #94a3b8;
+    font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 6px;
+    margin-left: 6px; text-transform: uppercase;
+  }
+  .tab-btn.active-radio { background: #38bdf8; color: #0f172a; border-color: #38bdf8; }
+  .tab-btn.active-spotify { background: #1db954; color: #0f172a; border-color: #1db954; }
+
   .radio-grid { display: -webkit-flex; display: flex; -webkit-flex-wrap: wrap; flex-wrap: wrap; }
   .radio-btn {
     width: 48%; margin: 1%; padding: 8px 6px;
@@ -152,6 +190,8 @@
     background: #38bdf8; cursor: pointer;
   }
   #radio-status { font-size: 12px; color: #94a3b8; margin-top: 5px; }
+  #spotify-pane { display: none; -webkit-flex: 1; flex: 1; width: 100%; }
+  #spotify-pane iframe { width: 100%; height: 100%; border-radius: 12px; border: 0; }
 </style>
 </head>
 <body>
@@ -170,10 +210,13 @@
       </div>
       <div class="forecast-row" id="forecast-row"></div>
     </div>
-    <div class="card w-xmas">
-      <h2>Countdown to Christmas</h2>
-      <div id="xmas-days">--</div>
-      <div class="xmas-label" id="xmas-sub">days to go</div>
+    <div class="card w-photos" onclick="nextPhoto()">
+      <div class="photo-stage">
+        <img id="photo-a" class="photo-slide" alt="">
+        <img id="photo-b" class="photo-slide" alt="">
+        <div id="photo-empty">Loading family photos...</div>
+        <div class="photo-badge" id="photo-counter">Family Photos</div>
+      </div>
     </div>
   </div>
 
@@ -198,14 +241,27 @@
         <div class="list-scroll" id="news-list">Loading BBC News...</div>
       </div>
       <div class="card radio-card">
-        <h2>UK Radio Player</h2>
-        <div class="radio-grid" id="radio-grid"></div>
-        <div class="vol-row">
-          <span class="vol-label" id="vol-label">VOL 80%</span>
-          <input type="range" id="vol-slider" min="0" max="100" value="80" oninput="setVolume(this.value)" onchange="setVolume(this.value)">
+        <div class="audio-header">
+          <h2 id="audio-title">UK Radio Player</h2>
+          <div class="audio-tabs">
+            <button class="tab-btn active-radio" id="tab-radio" onclick="switchAudioTab('radio')">Radio</button>
+            <button class="tab-btn" id="tab-spotify" onclick="switchAudioTab('spotify')">Spotify</button>
+          </div>
         </div>
-        <div id="radio-status">Tap a station to play</div>
-        <audio id="radio-audio" preload="none"></audio>
+
+        <div id="radio-pane">
+          <div class="radio-grid" id="radio-grid"></div>
+          <div class="vol-row">
+            <span class="vol-label" id="vol-label">VOL 80%</span>
+            <input type="range" id="vol-slider" min="0" max="100" value="80" oninput="setVolume(this.value)" onchange="setVolume(this.value)">
+          </div>
+          <div id="radio-status">Tap a station to play</div>
+          <audio id="radio-audio" preload="none"></audio>
+        </div>
+
+        <div id="spotify-pane">
+          <iframe src="https://open.spotify.com/embed/playlist/0WzaQ6bi9zYNJvuWXpxKHF?utm_source=generator&theme=0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+        </div>
       </div>
     </div>
   </div>
@@ -219,7 +275,7 @@
 </div>
 
 <script>
-// 1. CLOCK & CHRISTMAS COUNTDOWN
+// 1. LOCAL CLOCK
 function updateClock() {
   var now = new Date();
   var h = ("0" + now.getHours()).slice(-2);
@@ -229,16 +285,6 @@ function updateClock() {
   var days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
   var months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   document.getElementById("date").innerHTML = days[now.getDay()] + ", " + now.getDate() + " " + months[now.getMonth()] + " " + now.getFullYear();
-
-  var year = now.getFullYear();
-  var xmas = new Date(year, 11, 25);
-  if (now.getMonth() === 11 && now.getDate() > 25) {
-    xmas = new Date(year + 1, 11, 25);
-  }
-  var todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  var diffDays = Math.round((xmas - todayZero) / 86400000);
-  document.getElementById("xmas-days").innerHTML = diffDays === 0 ? "Today!" : diffDays;
-  document.getElementById("xmas-sub").innerHTML = diffDays === 1 ? "day until Christmas" : "days until Christmas";
 }
 setInterval(updateClock, 1000);
 updateClock();
@@ -270,6 +316,60 @@ function fetchWeather() {
 }
 fetchWeather();
 setInterval(fetchWeather, 1800000);
+
+// 2B. GOOGLE PHOTOS SHARED ALBUM SLIDESHOW (Tap photo frame to skip)
+var photoList = [];
+var photoIdx = 0;
+var activeImgLayer = "a";
+
+function showPhoto(index) {
+  if (photoList.length === 0) return;
+  var url = photoList[index % photoList.length];
+  var imgA = document.getElementById("photo-a");
+  var imgB = document.getElementById("photo-b");
+  var incoming = activeImgLayer === "a" ? imgB : imgA;
+  var outgoing = activeImgLayer === "a" ? imgA : imgB;
+
+  incoming.onload = function() {
+    document.getElementById("photo-empty").style.display = "none";
+    incoming.className = "photo-slide visible";
+    outgoing.className = "photo-slide";
+    activeImgLayer = activeImgLayer === "a" ? "b" : "a";
+    document.getElementById("photo-counter").innerHTML = ((index % photoList.length) + 1) + " / " + photoList.length;
+  };
+  incoming.src = url;
+}
+
+function nextPhoto() {
+  if (photoList.length === 0) return;
+  photoIdx = (photoIdx + 1) % photoList.length;
+  showPhoto(photoIdx);
+}
+
+function fetchPhotos() {
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "photos.json?t=" + new Date().getTime(), true);
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState === 4 && xhr.status === 200) {
+      var data = JSON.parse(xhr.responseText);
+      var list = data.photos || [];
+      if (list.length > 0) {
+        var isFirstLoad = (photoList.length === 0);
+        photoList = list;
+        if (isFirstLoad) {
+          photoIdx = 0;
+          showPhoto(0);
+        }
+      } else {
+        document.getElementById("photo-empty").innerHTML = "No photos found in shared album.";
+      }
+    }
+  };
+  xhr.send();
+}
+fetchPhotos();
+setInterval(nextPhoto, 15000);
+setInterval(fetchPhotos, 1800000);
 
 // 3. FAMILY CALENDAR (7-DAY ROLLING VIEW)
 function parseIcalDate(str) {
@@ -396,7 +496,34 @@ function fetchNews() {
 fetchNews();
 setInterval(fetchNews, 300000);
 
-// 6. ALL-INLINE UK RADIO PLAYER + VOLUME SLIDER
+// 6. RADIO / SPOTIFY TOGGLE + INLINE UK RADIO PLAYER
+function switchAudioTab(tab) {
+  var rPane = document.getElementById("radio-pane");
+  var sPane = document.getElementById("spotify-pane");
+  var rTab = document.getElementById("tab-radio");
+  var sTab = document.getElementById("tab-spotify");
+  var title = document.getElementById("audio-title");
+
+  if (tab === "spotify") {
+    stopStream();
+    currentStation = -1;
+    renderRadio();
+    document.getElementById("radio-status").innerHTML = "Stopped";
+    rPane.style.display = "none";
+    sPane.style.display = "-webkit-flex";
+    sPane.style.display = "flex";
+    rTab.className = "tab-btn";
+    sTab.className = "tab-btn active-spotify";
+    title.innerHTML = "Spotify Playlist";
+  } else {
+    sPane.style.display = "none";
+    rPane.style.display = "block";
+    rTab.className = "tab-btn active-radio";
+    sTab.className = "tab-btn";
+    title.innerHTML = "UK Radio Player";
+  }
+}
+
 var stations = [
   { name: "Capital FM", url: "https://media-ice.musicradio.com/CapitalMP3" },
   { name: "Capital XTRA", url: "https://media-ice.musicradio.com/CapitalXTRANationalMP3" },
