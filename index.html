@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Family Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.15/dist/hls.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
@@ -121,18 +120,32 @@
   .chore-item span { -webkit-flex: 1; flex: 1; margin-left: 10px; }
   .del-btn { background: none; border: none; color: #ef4444; font-size: 18px; padding: 0 6px; }
 
-  .fact-card { height: 42%; margin-bottom: 14px; }
-  #fact-text { font-size: 17px; line-height: 1.4; color: #e2e8f0; }
+  .fact-card { height: 39%; margin-bottom: 14px; }
+  #fact-text { font-size: 16px; line-height: 1.4; color: #e2e8f0; }
 
-  .radio-card { height: 58%; }
+  .radio-card { height: 61%; }
   .radio-grid { display: -webkit-flex; display: flex; -webkit-flex-wrap: wrap; flex-wrap: wrap; }
   .radio-btn {
-    width: 48%; margin: 1%; padding: 10px 8px;
+    width: 48%; margin: 1%; padding: 9px 6px;
     background: #0f172a; border: 1px solid #38bdf8; color: #f8fafc;
-    border-radius: 10px; font-size: 15px; font-weight: 600; text-align: center;
+    border-radius: 10px; font-size: 14px; font-weight: 600; text-align: center;
   }
   .radio-btn.active { background: #38bdf8; color: #0f172a; }
-  #radio-status { font-size: 13px; color: #94a3b8; margin-top: 6px; }
+  .vol-row {
+    display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+    margin-top: 8px; background: #0f172a; padding: 7px 12px; border-radius: 10px;
+  }
+  .vol-label { font-size: 13px; font-weight: 700; color: #94a3b8; margin-right: 10px; min-width: 68px; }
+  #vol-slider {
+    -webkit-flex: 1; flex: 1; height: 8px; border-radius: 5px;
+    background: #334155; outline: none; -webkit-appearance: none;
+  }
+  #vol-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #38bdf8; cursor: pointer;
+  }
+  #radio-status { font-size: 12px; color: #94a3b8; margin-top: 6px; }
 </style>
 </head>
 <body>
@@ -181,6 +194,10 @@
       <div class="card radio-card">
         <h2>UK Radio Player</h2>
         <div class="radio-grid" id="radio-grid"></div>
+        <div class="vol-row">
+          <span class="vol-label" id="vol-label">VOL 80%</span>
+          <input type="range" id="vol-slider" min="0" max="100" value="80" oninput="setVolume(this.value)" onchange="setVolume(this.value)">
+        </div>
         <div id="radio-status">Tap a station to play</div>
         <audio id="radio-audio" preload="none"></audio>
       </div>
@@ -196,6 +213,7 @@
 </div>
 
 <script>
+// 1. CLOCK & CHRISTMAS COUNTDOWN
 function updateClock() {
   var now = new Date();
   var h = ("0" + now.getHours()).slice(-2);
@@ -219,6 +237,7 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
+// 2. OPEN-METEO WEATHER FOR BROUGHTON ASTLEY
 function fetchWeather() {
   var xhr = new XMLHttpRequest();
   xhr.open("GET", "https://api.open-meteo.com/v1/forecast?latitude=52.528&longitude=-1.227&current=temperature_2m,precipitation_probability,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Europe%2FLondon&forecast_days=5", true);
@@ -246,6 +265,7 @@ function fetchWeather() {
 fetchWeather();
 setInterval(fetchWeather, 1800000);
 
+// 3. FAMILY CALENDAR (7-DAY ROLLING VIEW)
 function parseIcalDate(str) {
   var y = parseInt(str.substr(0, 4), 10);
   var mo = parseInt(str.substr(4, 2), 10) - 1;
@@ -320,6 +340,7 @@ function fetchCalendar() {
 fetchCalendar();
 setInterval(fetchCalendar, 300000);
 
+// 4. INTERACTIVE CHORES
 var chores = JSON.parse(localStorage.getItem("family_chores") || '[{"text":"Empty dishwasher","done":false},{"text":"Take bins out","done":false}]');
 function renderChores() {
   localStorage.setItem("family_chores", JSON.stringify(chores));
@@ -344,6 +365,7 @@ function toggleChore(i) { chores[i].done = !chores[i].done; renderChores(); }
 function delChore(i) { chores.splice(i, 1); renderChores(); }
 renderChores();
 
+// 5. ADULT FACT OF THE DAY
 var adultFacts = [
   "Oxford University is older than the Aztec Empire - teaching began there around 1096, over 200 years before Tenochtitlan was founded.",
   "Cleopatra lived closer in time to the first Moon landing in 1969 than she did to the construction of the Great Pyramid of Giza.",
@@ -361,23 +383,31 @@ var adultFacts = [
 var dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
 document.getElementById("fact-text").innerHTML = adultFacts[dayOfYear % adultFacts.length];
 
-// 6. UK RADIO PLAYER (With HLS.js for BBC + Direct AAC/MP3 for Commercial)
+// 6. ALL-INLINE UK RADIO PLAYER + VOLUME SLIDER
 var stations = [
-  { name: "Kisstory", url: "https://edge-bauerall-01-gos2.sharp-stream.com/kisstory.aac", hls: false },
-  { name: "BBC Radio Leicester", url: "https://as-hls-ww-live.akamaized.net/pool_904/live/ww/bbc_radio_leicester/bbc_radio_leicester.isml/bbc_radio_leicester-audio%3d96000.norewind.m3u8", hls: true },
-  { name: "Capital FM", url: "https://media-ice.musicradio.com/CapitalMP3", hls: false },
-  { name: "BBC Radio 5 Live", url: "https://as-hls-ww-live.akamaized.net/pool_904/live/ww/bbc_radio_five_live/bbc_radio_five_live.isml/bbc_radio_five_live-audio%3d96000.norewind.m3u8", hls: true },
-  { name: "BBC Radio 2", url: "https://as-hls-ww-live.akamaized.net/pool_904/live/ww/bbc_radio_two/bbc_radio_two.isml/bbc_radio_two-audio%3d96000.norewind.m3u8", hls: true }
+  { name: "Capital FM", url: "https://media-ice.musicradio.com/CapitalMP3" },
+  { name: "Capital XTRA", url: "https://media-ice.musicradio.com/CapitalXTRANationalMP3" },
+  { name: "Heart UK", url: "https://media-ice.musicradio.com/HeartUKMP3" },
+  { name: "Heart 90s", url: "https://media-ice.musicradio.com/Heart90sMP3" },
+  { name: "Radio X", url: "https://media-ice.musicradio.com/RadioXUKMP3" },
+  { name: "Smooth UK", url: "https://media-ice.musicradio.com/SmoothUKMP3" }
 ];
 var currentStation = -1;
 var audioEl = document.getElementById("radio-audio");
-var hlsInstance = null;
+
+var savedVol = parseInt(localStorage.getItem("radio_vol") || "80", 10);
+audioEl.volume = savedVol / 100;
+document.getElementById("vol-slider").value = savedVol;
+document.getElementById("vol-label").innerHTML = "VOL " + savedVol + "%";
+
+function setVolume(val) {
+  var v = parseInt(val, 10);
+  audioEl.volume = v / 100;
+  document.getElementById("vol-label").innerHTML = "VOL " + v + "%";
+  localStorage.setItem("radio_vol", v);
+}
 
 function stopStream() {
-  if (hlsInstance) {
-    hlsInstance.destroy();
-    hlsInstance = null;
-  }
   audioEl.pause();
   audioEl.removeAttribute("src");
   audioEl.load();
@@ -412,43 +442,22 @@ function toggleStation(i) {
 
   stopStream();
   currentStation = i;
-  var st = stations[i];
-  status.innerHTML = "Connecting to " + st.name + "...";
+  audioEl.src = stations[i].url;
+  status.innerHTML = "Connecting to " + stations[i].name + "...";
   renderRadio();
 
-  if (st.hls && window.Hls && Hls.isSupported()) {
-    hlsInstance = new Hls();
-    hlsInstance.loadSource(st.url);
-    hlsInstance.attachMedia(audioEl);
-    hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
-      audioEl.play().then(function() {
-        status.innerHTML = "Playing: " + st.name;
-      }).catch(function(err) {
-        status.innerHTML = "Tap again to start audio (" + err.name + ")";
-      });
+  var playPromise = audioEl.play();
+  if (playPromise !== undefined) {
+    playPromise.then(function() {
+      status.innerHTML = "Playing: " + stations[i].name;
+    }).catch(function(err) {
+      status.innerHTML = "Tap again to start audio (" + err.name + ")";
     });
-    hlsInstance.on(Hls.Events.ERROR, function(event, data) {
-      if (data.fatal) {
-        status.innerHTML = "BBC stream blocked or offline";
-        stopStream();
-        currentStation = -1;
-        renderRadio();
-      }
-    });
-  } else {
-    audioEl.src = st.url;
-    var playPromise = audioEl.play();
-    if (playPromise !== undefined) {
-      playPromise.then(function() {
-        status.innerHTML = "Playing: " + st.name;
-      }).catch(function(err) {
-        status.innerHTML = "Tap again to start audio (" + err.name + ")";
-      });
-    }
   }
 }
 renderRadio();
 
+// 7. LIVE UK FOOTBALL SCORES TICKER
 var ukLeagues = [
   { code: "eng.1", label: "PL" },
   { code: "eng.2", label: "CHAMP" },
@@ -515,6 +524,7 @@ function fetchFootballScores() {
 fetchFootballScores();
 setInterval(fetchFootballScores, 120000);
 
+// 8. SILENT AUTO-UPDATE WITHOUT DROPPING FULL SCREEN
 var knownVersion = null;
 function checkUpdate() {
   var xhr = new XMLHttpRequest();
@@ -533,6 +543,7 @@ function checkUpdate() {
 setInterval(checkUpdate, 60000);
 checkUpdate();
 
+// 9. SCREEN WAKE LOCK
 function keepAwake() {
   if ("wakeLock" in navigator) {
     navigator.wakeLock.request("screen").catch(function() {});
