@@ -25,7 +25,7 @@ jobs:
       - name: Install dependencies
         run: pip install requests icalendar recurring-ical-events
 
-      - name: Fetch Private Calendar & Google Photos
+      - name: Fetch Private Calendar, Google Photos & Build PWA Assets
         env:
           ICAL_URL: ${{ secrets.ICAL_URL }}
           GOOGLE_ALBUM_URL: ${{ secrets.GOOGLE_ALBUM_URL }}
@@ -33,13 +33,38 @@ jobs:
           mkdir -p public
           cp index.html public/index.html
           cp manifest.json public/manifest.json
-          cp icon-512.png public/icon-512.png
           cp sw.js public/sw.js
           python - << 'EOF'
-          import os, json, re, requests
+          import os, json, re, zlib, struct, requests
           from datetime import datetime, timedelta, timezone
           from icalendar import Calendar
           import recurring_ical_events
+
+          # 0. Generate a valid 512x512 PNG icon (dark slate #0f172a with sky-blue #38bdf8 frame)
+          def make_png(path, w=512, h=512):
+              bg = b'\x0f\x17\x2a\xff'
+              fg = b'\x38\xbd\xf8\xff'
+              raw = bytearray()
+              for y in range(h):
+                  raw.append(0)
+                  in_border = (48 <= y < 72) or (h - 72 <= y < h - 48)
+                  in_vert = (48 <= y < h - 48)
+                  for x in range(w):
+                      if (in_border and 48 <= x < w - 48) or (in_vert and ((48 <= x < 72) or (w - 72 <= x < w - 48))):
+                          raw.extend(fg)
+                      elif (180 <= y < 332) and (180 <= x < 332):
+                          raw.extend(fg)
+                      else:
+                          raw.extend(bg)
+              def chunk(tag, data):
+                  return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data) & 0xffffffff)
+              ihdr = struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0)
+              png = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', ihdr) + chunk(b'IDAT', zlib.compress(bytes(raw), 9)) + chunk(b'IEND', b'')
+              with open(path, "wb") as f:
+                  f.write(png)
+
+          make_png("public/icon-512.png", 512, 512)
+          make_png("public/icon-192.png", 192, 192)
 
           # 1. Fetch & expand recurring events for the next 14 days
           ical_url = os.environ.get("ICAL_URL", "").strip()
