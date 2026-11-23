@@ -64,7 +64,7 @@
 
   .card {
     background: #1e293b; border: 1px solid #334155;
-    border-radius: 16px; padding: 16px 20px;
+    border-radius: 16px; padding: 14px 18px;
     display: -webkit-flex; display: flex;
     -webkit-flex-direction: column; flex-direction: column;
     overflow: hidden;
@@ -74,13 +74,21 @@
   .w-weather { width: 42%; }
   .w-xmas { width: 24%; text-align: center; -webkit-justify-content: center; justify-content: center; }
 
-  .w-cal { width: 33%; }
+  .w-left {
+    width: 33%; display: -webkit-flex; display: flex;
+    -webkit-flex-direction: column; flex-direction: column;
+  }
+  .cal-card { height: 47%; margin-bottom: 12px; }
+  .shop-card { height: 53%; }
+
   .w-photos { width: 35%; padding: 0; position: relative; background: #0f172a; }
   .w-right { width: 32%; display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column; }
 
   h2 {
-    font-size: 14px; text-transform: uppercase; letter-spacing: 1.2px;
-    color: #94a3b8; margin-bottom: 10px; border-bottom: 1px solid #334155; padding-bottom: 5px;
+    font-size: 13px; text-transform: uppercase; letter-spacing: 1.1px;
+    color: #94a3b8; margin-bottom: 8px; border-bottom: 1px solid #334155; padding-bottom: 4px;
+    display: -webkit-flex; display: flex; -webkit-justify-content: space-between; justify-content: space-between;
+    -webkit-align-items: center; align-items: center;
   }
   #clock { font-size: 64px; font-weight: 700; line-height: 1; color: #38bdf8; }
   #date { font-size: 21px; color: #cbd5e1; margin-top: 8px; }
@@ -101,12 +109,49 @@
   .list-scroll { overflow-y: auto; -webkit-flex: 1; flex: 1; }
   .cal-item {
     background: #0f172a; border-left: 4px solid #38bdf8;
-    padding: 8px 12px; border-radius: 8px; margin-bottom: 8px;
+    padding: 6px 10px; border-radius: 8px; margin-bottom: 6px;
   }
   .cal-item.tomorrow { border-left-color: #a78bfa; }
   .cal-item.upcoming { border-left-color: #34d399; }
-  .cal-time { font-size: 13px; color: #94a3b8; font-weight: 600; }
-  .cal-title { font-size: 17px; color: #f8fafc; margin-top: 2px; }
+  .cal-time { font-size: 12px; color: #94a3b8; font-weight: 600; }
+  .cal-title { font-size: 15px; color: #f8fafc; margin-top: 1px; }
+
+  /* Shopping List Card */
+  .shop-actions-inline {
+    display: -webkit-inline-flex; display: inline-flex; gap: 6px;
+  }
+  .mini-btn {
+    background: #0f172a; color: #cbd5e1; border: 1px solid #475569;
+    border-radius: 6px; padding: 2px 7px; font-size: 11px; font-weight: 700;
+    text-transform: none; letter-spacing: 0;
+  }
+  .shop-form {
+    display: -webkit-flex; display: flex; gap: 6px; margin-bottom: 8px;
+  }
+  #shop-input {
+    -webkit-flex: 1; flex: 1; min-width: 0;
+    background: #0f172a; color: #f8fafc; border: 1px solid #334155;
+    border-radius: 8px; padding: 7px 10px; font-size: 14px; outline: none;
+  }
+  #shop-input:focus { border-color: #38bdf8; }
+  #shop-add-btn {
+    background: #38bdf8; color: #0f172a; border: none;
+    border-radius: 8px; padding: 0 12px; font-size: 13px; font-weight: 800;
+  }
+  .shop-item {
+    display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+    background: #0f172a; border-radius: 8px; padding: 6px 9px; margin-bottom: 5px;
+    font-size: 14px;
+  }
+  .shop-item.done .shop-text {
+    text-decoration: line-through; color: #64748b;
+  }
+  .shop-text {
+    -webkit-flex: 1; flex: 1; margin-left: 8px; color: #f8fafc; word-break: break-word;
+  }
+  .shop-del {
+    background: none; border: none; color: #94a3b8; font-size: 14px; font-weight: 700; padding: 0 4px;
+  }
 
   /* Center Photo Frame */
   .photo-stage {
@@ -227,9 +272,25 @@
   </div>
 
   <div class="bottom-row">
-    <div class="card mr w-cal">
-      <h2>Family Calendar (Next 7 Days)</h2>
-      <div class="list-scroll" id="cal-list">Loading events...</div>
+    <div class="mr w-left">
+      <div class="card cal-card">
+        <h2>Calendar (7 Days)</h2>
+        <div class="list-scroll" id="cal-list">Loading events...</div>
+      </div>
+      <div class="card shop-card">
+        <h2>
+          <span>Shopping List</span>
+          <span class="shop-actions-inline">
+            <button type="button" class="mini-btn" id="shop-copy-btn" onclick="copyShoppingList()">Copy</button>
+            <button type="button" class="mini-btn" onclick="clearDoneItems()">Clear Done</button>
+          </span>
+        </h2>
+        <form class="shop-form" onsubmit="addShoppingItem(event)">
+          <input type="text" id="shop-input" placeholder="Type item (e.g. Milk, Eggs)..." autocomplete="off">
+          <button type="submit" id="shop-add-btn">Add</button>
+        </form>
+        <div class="list-scroll" id="shop-list"></div>
+      </div>
     </div>
 
     <div class="card mr w-photos" onclick="nextPhoto()">
@@ -366,7 +427,7 @@ function fetchCalendar() {
 
       var box = document.getElementById("cal-list");
       if (items.length === 0) {
-        box.innerHTML = '<div style="color:#94a3b8;font-size:17px;">No events scheduled for the next 7 days.</div>';
+        box.innerHTML = '<div style="color:#94a3b8;font-size:15px;">No events in next 7 days.</div>';
         return;
       }
       var html = "";
@@ -394,7 +455,111 @@ function fetchCalendar() {
 fetchCalendar();
 setInterval(fetchCalendar, 300000);
 
-// 4. GOOGLE PHOTOS SHARED ALBUM SLIDESHOW (True Random Shuffle - Tap to Skip)
+// 3B. INTERACTIVE SHOPPING LIST (SAVED LOCALLY + QUICK COPY FOR APPLE NOTES)
+var SHOP_STORAGE_KEY = "family_dashboard_shopping_v1";
+var shoppingItems = [];
+
+function loadShoppingItems() {
+  try {
+    var raw = localStorage.getItem(SHOP_STORAGE_KEY);
+    shoppingItems = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(shoppingItems)) shoppingItems = [];
+  } catch (e) {
+    shoppingItems = [];
+  }
+  renderShoppingList();
+}
+
+function saveShoppingItems() {
+  try {
+    localStorage.setItem(SHOP_STORAGE_KEY, JSON.stringify(shoppingItems));
+  } catch (e) {}
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function renderShoppingList() {
+  var listEl = document.getElementById("shop-list");
+  if (!listEl) return;
+  if (shoppingItems.length === 0) {
+    listEl.innerHTML = '<div style="color:#64748b;font-size:13px;padding-top:2px;">Type an item above to start your list.</div>';
+    return;
+  }
+  var html = "";
+  for (var i = 0; i < shoppingItems.length; i++) {
+    var item = shoppingItems[i];
+    html += '<div class="shop-item' + (item.done ? ' done' : '') + '">' +
+            '<input type="checkbox" ' + (item.done ? 'checked' : '') + ' onchange="toggleShoppingItem(' + i + ')">' +
+            '<span class="shop-text" onclick="toggleShoppingItem(' + i + ')">' + escapeHtml(item.text) + '</span>' +
+            '<button type="button" class="shop-del" onclick="deleteShoppingItem(' + i + ')" title="Remove">✕</button>' +
+            '</div>';
+  }
+  listEl.innerHTML = html;
+}
+
+function addShoppingItem(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  var input = document.getElementById("shop-input");
+  if (!input) return;
+  var val = input.value.trim();
+  if (!val) return;
+  shoppingItems.unshift({ text: val, done: false });
+  input.value = "";
+  saveShoppingItems();
+  renderShoppingList();
+}
+
+function toggleShoppingItem(idx) {
+  if (!shoppingItems[idx]) return;
+  shoppingItems[idx].done = !shoppingItems[idx].done;
+  saveShoppingItems();
+  renderShoppingList();
+}
+
+function deleteShoppingItem(idx) {
+  if (!shoppingItems[idx]) return;
+  shoppingItems.splice(idx, 1);
+  saveShoppingItems();
+  renderShoppingList();
+}
+
+function clearDoneItems() {
+  shoppingItems = shoppingItems.filter(function(item) { return !item.done; });
+  saveShoppingItems();
+  renderShoppingList();
+}
+
+function copyShoppingList() {
+  var activeLines = shoppingItems
+    .filter(function(item) { return !item.done; })
+    .map(function(item) { return "• " + item.text; });
+  var textToCopy = activeLines.length > 0 ? activeLines.join("\n") : "";
+  var btn = document.getElementById("shop-copy-btn");
+  if (!textToCopy) {
+    if (btn) {
+      btn.innerHTML = "Empty";
+      setTimeout(function() { btn.innerHTML = "Copy"; }, 1200);
+    }
+    return;
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(textToCopy).then(function() {
+      if (btn) {
+        btn.innerHTML = "Copied!";
+        setTimeout(function() { btn.innerHTML = "Copy"; }, 1500);
+      }
+    }).catch(function() {});
+  }
+}
+loadShoppingItems();
+
+// 4. SHARED ALBUM SLIDESHOW (True Random Shuffle - Tap to Skip)
 var photoList = [];
 var photoIdx = 0;
 var activeImgLayer = "a";
@@ -579,261 +744,4 @@ function fmtYMD(d) {
 }
 
 function formatMatchLine(leagueLabel, ev, home, away, showFullDate) {
-  var state = ev.status && ev.status.type && ev.status.type.state;
-  var detail = (ev.status && ev.status.type && ev.status.type.shortDetail) || "";
-  var hName = (home.team && (home.team.shortDisplayName || home.team.name)) || "Home";
-  var aName = (away.team && (away.team.shortDisplayName || away.team.name)) || "Away";
-  var hScore = (home.score !== undefined && home.score !== null) ? home.score : "";
-  var aScore = (away.score !== undefined && away.score !== null) ? away.score : "";
-
-  var scoreStr = "";
-  if (state === "pre") {
-    var ko = formatUkKickoff(ev.date);
-    var timePart = showFullDate ? ko : (ko ? ko.split(", ")[1] : detail);
-    scoreStr = hName + " v " + aName + '<span class="t-status">(' + timePart + ')</span>';
-  } else if (state === "in") {
-    scoreStr = hName + " " + hScore + "-" + aScore + " " + aName + '<span class="t-live">LIVE ' + detail + '</span>';
-  } else {
-    var datePrefix = showFullDate ? (formatUkKickoff(ev.date).split(", ")[0] + " ") : "";
-    scoreStr = hName + " " + hScore + "-" + aScore + " " + aName + '<span class="t-status">(' + datePrefix + detail + ')</span>';
-  }
-  return '<span class="t-comp">[' + leagueLabel + ']</span>' + scoreStr;
-}
-
-function fetchFootballScores() {
-  var favToday = [];
-  var todayOther = [];
-  var fallbackFixtures = [];
-  var nextLcfcObj = null;
-  var lcfcStandingTag = "";
-
-  var tableLeagues = [];
-  for (var t = 0; t < ukLeagues.length; t++) {
-    if (ukLeagues[t].hasTable) tableLeagues.push(ukLeagues[t]);
-  }
-
-  var totalRequests = ukLeagues.length + tableLeagues.length;
-  var completed = 0;
-
-  var now = new Date();
-  var todayYMD = fmtYMD(now);
-
-  function finishTicker() {
-    var lead = [];
-    if (favToday.length > 0) {
-      for (var f = 0; f < favToday.length; f++) {
-        lead.push('<span class="t-item t-fav">' + favToday[f] + lcfcStandingTag + '</span>');
-      }
-    } else if (nextLcfcObj) {
-      lead.push('<span class="t-item t-fav">' + nextLcfcObj.html + lcfcStandingTag + '</span>');
-    } else if (lcfcStandingTag) {
-      lead.push('<span class="t-item t-fav"><span class="t-comp">[LCFC]</span>Leicester City' + lcfcStandingTag + '</span>');
-    }
-
-    var pool = todayOther.length > 0 ? todayOther : fallbackFixtures;
-    var allItems = lead.concat(pool);
-    var track = document.getElementById("football-ticker");
-    if (allItems.length > 0) {
-      track.innerHTML = allItems.join("");
-      var duration = Math.max(30, allItems.length * 5);
-      track.style.webkitAnimationDuration = duration + "s";
-      track.style.animationDuration = duration + "s";
-    } else {
-      track.innerHTML = "No fixtures available right now across Premier League, Championship, League One, or Domestic Cups.";
-    }
-  }
-
-  // A. Fetch Today's Scoreboard Per League + Default/Upcoming Feed for Next LCFC & Other Matches
-  for (var i = 0; i < ukLeagues.length; i++) {
-    (function(league) {
-      var todayXhr = new XMLHttpRequest();
-      todayXhr.open("GET", "https://site.api.espn.com/apis/site/v2/sports/soccer/" + league.code + "/scoreboard?dates=" + todayYMD, true);
-      todayXhr.onreadystatechange = function() {
-        if (todayXhr.readyState === 4) {
-          if (todayXhr.status === 200) {
-            try {
-              var data = JSON.parse(todayXhr.responseText);
-              var events = data.events || [];
-              for (var j = 0; j < events.length; j++) {
-                var ev = events[j];
-                var comp = ev.competitions && ev.competitions[0];
-                if (!comp || !comp.competitors || comp.competitors.length < 2) continue;
-                var home = comp.competitors[0].homeAway === "home" ? comp.competitors[0] : comp.competitors[1];
-                var away = comp.competitors[0].homeAway === "away" ? comp.competitors[0] : comp.competitors[1];
-                var hName = (home.team && (home.team.shortDisplayName || home.team.name)) || "";
-                var aName = (away.team && (away.team.shortDisplayName || away.team.name)) || "";
-                var isFav = (hName.toLowerCase().indexOf("leicester") !== -1 || aName.toLowerCase().indexOf("leicester") !== -1);
-
-                var line = formatMatchLine(league.label, ev, home, away, false);
-                if (isFav) {
-                  favToday.push(line);
-                } else {
-                  todayOther.push('<span class="t-item">' + line + '</span>');
-                }
-              }
-            } catch (e) {}
-          }
-
-          var defXhr = new XMLHttpRequest();
-          defXhr.open("GET", "https://site.api.espn.com/apis/site/v2/sports/soccer/" + league.code + "/scoreboard", true);
-          defXhr.onreadystatechange = function() {
-            if (defXhr.readyState === 4) {
-              if (defXhr.status === 200) {
-                try {
-                  var dData = JSON.parse(defXhr.responseText);
-                  var dEvents = dData.events || [];
-                  for (var m = 0; m < dEvents.length; m++) {
-                    var dev = dEvents[m];
-                    var dComp = dev.competitions && dev.competitions[0];
-                    if (!dComp || !dComp.competitors || dComp.competitors.length < 2) continue;
-                    var dHome = dComp.competitors[0].homeAway === "home" ? dComp.competitors[0] : dComp.competitors[1];
-                    var dAway = dComp.competitors[0].homeAway === "away" ? dComp.competitors[0] : dComp.competitors[1];
-                    var dhName = (dHome.team && (dHome.team.shortDisplayName || dHome.team.name)) || "";
-                    var daName = (dAway.team && (dAway.team.shortDisplayName || dAway.team.name)) || "";
-                    var dState = dev.status && dev.status.type && dev.status.type.state;
-                    var isFavMatch = (dhName.toLowerCase().indexOf("leicester") !== -1 || daName.toLowerCase().indexOf("leicester") !== -1);
-
-                    if (isFavMatch && dState === "pre") {
-                      var evMs = new Date(dev.date).getTime();
-                      if (!isNaN(evMs) && (!nextLcfcObj || evMs < nextLcfcObj.ms)) {
-                        nextLcfcObj = {
-                          ms: evMs,
-                          html: formatMatchLine("NEXT " + league.label, dev, dHome, dAway, true)
-                        };
-                      }
-                    } else if (!isFavMatch && fallbackFixtures.length < 18) {
-                      fallbackFixtures.push('<span class="t-item">' + formatMatchLine(league.label, dev, dHome, dAway, true) + '</span>');
-                    }
-                  }
-                } catch (e) {}
-              }
-              completed++;
-              if (completed === totalRequests) finishTicker();
-            }
-          };
-          defXhr.send();
-        }
-      };
-      todayXhr.send();
-    })(ukLeagues[i]);
-  }
-
-  // B. Fetch Standings Tables to Find Leicester City's Current Position & Points
-  for (var k = 0; k < tableLeagues.length; k++) {
-    (function(league) {
-      var sXhr = new XMLHttpRequest();
-      sXhr.open("GET", "https://site.api.espn.com/apis/site/v2/sports/soccer/" + league.code + "/standings", true);
-      sXhr.onreadystatechange = function() {
-        if (sXhr.readyState === 4) {
-          if (sXhr.status === 200) {
-            try {
-              var stData = JSON.parse(sXhr.responseText);
-              var children = stData.children || [stData];
-              for (var c = 0; c < children.length; c++) {
-                var entries = (children[c].standings && children[c].standings.entries) || [];
-                for (var e = 0; e < entries.length; e++) {
-                  var entry = entries[e];
-                  var tName = (entry.team && (entry.team.displayName || entry.team.name || "")).toLowerCase();
-                  if (tName.indexOf("leicester") !== -1) {
-                    var rankVal = "";
-                    var ptsVal = "";
-                    var stats = entry.stats || [];
-                    for (var st = 0; st < stats.length; st++) {
-                      if (stats[st].name === "rank") rankVal = stats[st].displayValue || stats[st].value;
-                      if (stats[st].name === "points") ptsVal = stats[st].displayValue || Math.round(stats[st].value);
-                    }
-                    if (rankVal && ptsVal !== "") {
-                      lcfcStandingTag = '<span class="t-status" style="color:#fde68a;font-weight:700;"> • ' + getOrdinal(rankVal) + ' (' + ptsVal + ' pts)</span>';
-                    }
-                  }
-                }
-              }
-            } catch (e) {}
-          }
-          completed++;
-          if (completed === totalRequests) finishTicker();
-        }
-      };
-      sXhr.send();
-    })(tableLeagues[k]);
-  }
-}
-fetchFootballScores();
-setInterval(fetchFootballScores, 120000);
-
-// 7. SILENT AUTO-UPDATE WITHOUT DROPPING FULL SCREEN
-var knownVersion = null;
-function checkUpdate() {
-  var xhr = new XMLHttpRequest();
-  xhr.open("GET", "version.txt?t=" + new Date().getTime(), true);
-  xhr.onreadystatechange = function() {
-    if (xhr.readyState === 4 && xhr.status === 200) {
-      var v = xhr.responseText.trim();
-      if (knownVersion && knownVersion !== v) {
-        window.location.reload();
-      }
-      knownVersion = v;
-    }
-  };
-  xhr.send();
-}
-setInterval(checkUpdate, 60000);
-checkUpdate();
-
-// 8. SCREEN WAKE LOCK
-function keepAwake() {
-  if ("wakeLock" in navigator) {
-    navigator.wakeLock.request("screen").catch(function() {});
-  }
-}
-document.addEventListener("visibilitychange", function() {
-  if (document.visibilityState === "visible") keepAwake();
-});
-document.addEventListener("click", keepAwake);
-keepAwake();
-
-// 9. AUTOMATIC NIGHT DIMMER (22:00 TO 07:00 WITH TAP OVERRIDE)
-var nightOverride = false;
-var lastNightState = false;
-
-function checkNightMode() {
-  var hr = new Date().getHours();
-  var isNight = (hr >= 22 || hr < 7);
-  if (isNight !== lastNightState) {
-    nightOverride = false;
-    lastNightState = isNight;
-  }
-  var dimmer = document.getElementById("night-dimmer");
-  var pill = document.getElementById("night-pill");
-  if (!dimmer || !pill) return;
-
-  if (isNight) {
-    pill.style.display = "block";
-    if (nightOverride) {
-      dimmer.className = "";
-      pill.innerHTML = "Night Dim: PAUSED (Tap to Dim)";
-    } else {
-      dimmer.className = "active";
-      pill.innerHTML = "Night Dim: ON (Tap to Brighten)";
-    }
-  } else {
-    dimmer.className = "";
-    pill.style.display = "none";
-  }
-}
-
-function toggleNightOverride() {
-  nightOverride = !nightOverride;
-  checkNightMode();
-}
-
-setInterval(checkNightMode, 30000);
-checkNightMode();
-
-// 10. REGISTER SERVICE WORKER FOR CHROME PWA INSTALL
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js").catch(function() {});
-}
-</script>
-</body>
-</html>
+  var
