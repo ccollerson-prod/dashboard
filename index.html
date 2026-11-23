@@ -90,8 +90,8 @@
     display: -webkit-flex; display: flex; -webkit-justify-content: space-between; justify-content: space-between;
     -webkit-align-items: center; align-items: center;
   }
-  #clock { font-size: 64px; font-weight: 700; line-height: 1; color: #38bdf8; }
-  #date { font-size: 21px; color: #cbd5e1; margin-top: 8px; }
+  #clock { font-size: 84px; font-weight: 700; line-height: 1; color: #38bdf8; text-align: center; margin-top: 4px; }
+  #date { font-size: 21px; color: #cbd5e1; margin-top: 10px; text-align: center; }
 
   .weather-now { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; margin-bottom: 10px; }
   #temp-now { font-size: 44px; font-weight: 700; margin-right: 18px; color: #fbbf24; }
@@ -103,8 +103,7 @@
   }
   .f-day strong { display: block; color: #38bdf8; margin-bottom: 3px; }
 
-  #xmas-days { font-size: 52px; font-weight: 800; color: #f43f5e; line-height: 1.05; }
-  .xmas-label { font-size: 17px; color: #cbd5e1; margin-top: 4px; }
+  #xmas-days { font-size: 74px; font-weight: 800; color: #f43f5e; line-height: 1; margin-top: 6px; }
 
   .list-scroll { overflow-y: auto; -webkit-flex: 1; flex: 1; }
   .cal-item {
@@ -267,7 +266,6 @@
     <div class="card w-xmas">
       <h2>Countdown to Christmas</h2>
       <div id="xmas-days">--</div>
-      <div class="xmas-label" id="xmas-sub">days to go</div>
     </div>
   </div>
 
@@ -337,7 +335,13 @@ function updateClock() {
 
   var days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
   var months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  document.getElementById("date").innerHTML = days[now.getDay()] + ", " + now.getDate() + " " + months[now.getMonth()] + " " + now.getFullYear();
+  var dayNum = now.getDate();
+  var j = dayNum % 10, k = dayNum % 100;
+  var suffix = "th";
+  if (j === 1 && k !== 11) suffix = "st";
+  else if (j === 2 && k !== 12) suffix = "nd";
+  else if (j === 3 && k !== 13) suffix = "rd";
+  document.getElementById("date").innerHTML = days[now.getDay()] + " " + dayNum + suffix + " " + months[now.getMonth()];
 
   var year = now.getFullYear();
   var xmas = new Date(year, 11, 25);
@@ -347,7 +351,6 @@ function updateClock() {
   var todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   var diffDays = Math.round((xmas - todayZero) / 86400000);
   document.getElementById("xmas-days").innerHTML = diffDays === 0 ? "Today!" : diffDays;
-  document.getElementById("xmas-sub").innerHTML = diffDays === 1 ? "day until Christmas" : "days until Christmas";
 }
 setInterval(updateClock, 1000);
 updateClock();
