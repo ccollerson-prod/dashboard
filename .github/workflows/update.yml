@@ -25,22 +25,22 @@ jobs:
       - name: Install dependencies
         run: pip install requests icalendar recurring-ical-events
 
-      - name: Fetch Private Calendar, Google Photos & Build PWA Assets
+      - name: Fetch Private Calendar, iCloud Photos & Build PWA Assets
         env:
           ICAL_URL: ${{ secrets.ICAL_URL }}
-          GOOGLE_ALBUM_URL: ${{ secrets.GOOGLE_ALBUM_URL }}
+          ICLOUD_ALBUM_TOKEN: ${{ secrets.ICLOUD_ALBUM_TOKEN }}
         run: |
           mkdir -p public
           cp index.html public/index.html
           cp manifest.json public/manifest.json
           cp sw.js public/sw.js
           python - << 'EOF'
-          import os, json, re, zlib, struct, requests
+          import os, json, zlib, struct, requests
           from datetime import datetime, timedelta, timezone
           from icalendar import Calendar
           import recurring_ical_events
 
-          # 0. Generate a valid 512x512 PNG icon (dark slate #0f172a with sky-blue #38bdf8 frame)
+          # 0. Generate valid 512x512 and 192x192 PNG icons
           def make_png(path, w=512, h=512):
               bg = b'\x0f\x17\x2a\xff'
               fg = b'\x38\xbd\xf8\xff'
@@ -96,23 +96,53 @@ jobs:
               json.dump({"updated": datetime.now(timezone.utc).isoformat(), "events": events_out}, f)
           print(f"Saved {len(events_out)} calendar events.")
 
-          # 2. Fetch up to 200 image URLs from public Google Photos shared album
-          album_url = os.environ.get("GOOGLE_ALBUM_URL", "").strip()
+          # 2. Fetch up to 200 image URLs from a public Apple iCloud Shared Album
+          token = os.environ.get("ICLOUD_ALBUM_TOKEN", "").strip()
           photos = []
-          if album_url:
-              headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-              resp = requests.get(album_url, headers=headers, timeout=30, allow_redirects=True)
-              resp.raise_for_status()
-              matches = re.findall(r'https://lh3\.googleusercontent\.com/pw/[A-Za-z0-9\-_]+', resp.text)
-              seen = set()
-              for m in matches:
-                  if m not in seen:
-                      seen.add(m)
-                      photos.append(m + "=w1280-h960-no")
+          if token:
+              base_url = f"https://p23-sharedstreams.icloud.com/{token}/sharedstreams"
+              headers = {"Content-Type": "application/json"}
+              stream_resp = requests.post(f"{base_url}/webstream", json={"streamCtag": None}, headers=headers, timeout=30)
+              if stream_resp.status_code == 330 and stream_resp.json().get("X-Apple-MMe-Host"):
+                  host = stream_resp.json()["X-Apple-MMe-Host"]
+                  base_url = f"https://{host}/{token}/sharedstreams"
+                  stream_resp = requests.post(f"{base_url}/webstream", json={"streamCtag": None}, headers=headers, timeout=30)
+              stream_resp.raise_for_status()
+              stream_data = stream_resp.json()
+              photo_guids = [p.get("photoGuid") for p in stream_data.get("photos", []) if p.get("photoGuid")][:200]
+
+              if photo_guids:
+                  assets_resp = requests.post(
+                      f"{base_url}/webasseturls",
+                      json={"photoGuids": photo_guids},
+                      headers=headers,
+                      timeout=30
+                  )
+                  assets_resp.raise_for_status()
+                  assets_data = assets_resp.json()
+                  items = assets_data.get("items", {})
+                  locations = assets_data.get("locations", {})
+                  for guid in photo_guids:
+                      best_url = None
+                      best_w = -1
+                      for _, info in items.items():
+                          if info.get("photoGuid") == guid or info.get("checksum") in str(assets_data):
+                              w = int(info.get("width") or 0)
+                              url_loc = info.get("url_location")
+                              path = info.get("url_path")
+                              if url_loc and path and w >= best_w:
+                                  loc_obj = locations.get(url_loc, {})
+                                  scheme = loc_obj.get("scheme", "https")
+                                  hosts = loc_obj.get("hosts", [])
+                                  if hosts:
+                                      best_w = w
+                                      best_url = f"{scheme}://{hosts[0]}{path}"
+                      if best_url:
+                          photos.append(best_url)
 
           with open("public/photos.json", "w") as f:
               json.dump({"updated": datetime.now(timezone.utc).isoformat(), "photos": photos[:200]}, f)
-          print(f"Fetched {len(photos[:200])} photos from album.")
+          print(f"Fetched {len(photos[:200])} photos from iCloud album.")
           EOF
 
       - name: Write version timestamp
