@@ -1,0 +1,51 @@
+name: Update Family Dashboard
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch Private Calendar & Build events.json
+        env:
+          ICAL_URL: ${{ secrets.ICAL_URL }}
+        run: |
+          mkdir -p public
+          cp index.html public/index.html
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > public/version.txt
+          python3 - << 'EOF'
+          import os, urllib.request, json, re
+          from datetime import datetime, timezone
+
+          url = os.environ.get("ICAL_URL", "")
+          events = []
+          if url:
+              raw = urllib.request.urlopen(url, timeout=20).read().decode("utf-8", errors="ignore")
+              raw = re.sub(r"\r?\n[ \t]", "", raw)
+              for block in raw.split("BEGIN:VEVENT")[1:]:
+                  block = block.split("END:VEVENT")[0]
+                  summary = re.search(r"^SUMMARY(?:;[^:]*)?:(.*)$", block, re.M)
+                  dtstart = re.search(r"^DTSTART(?:;[^:]*)?:(.*)$", block, re.M)
+                  if summary and dtstart:
+                      events.append({
+                          "title": summary.group(1).replace("\\,", ",").strip(),
+                          "start": dtstart.group(1).strip()
+                      })
+          with open("public/events.json", "w") as f:
+              json.dump({"updated": datetime.now(timezone.utc).isoformat(), "events": events}, f)
+          EOF
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      - uses: actions/deploy-pages@v4
