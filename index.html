@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Family Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.15/dist/hls.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
@@ -360,19 +361,31 @@ var adultFacts = [
 var dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
 document.getElementById("fact-text").innerHTML = adultFacts[dayOfYear % adultFacts.length];
 
+// 6. UK RADIO PLAYER (With HLS.js for BBC + Direct AAC/MP3 for Commercial)
 var stations = [
-  { name: "Kisstory", url: "https://stream-kiss.planetradio.co.uk/kisstory.mp3" },
-  { name: "BBC Radio Leicester", url: "https://stream.live.vc.bbcmedia.co.uk/bbc_radio_leicester" },
-  { name: "Capital FM", url: "https://media-ice.musicradio.com/CapitalMP3" },
-  { name: "BBC Radio 5 Live", url: "https://stream.live.vc.bbcmedia.co.uk/bbc_radio_five_live" },
-  { name: "BBC Radio 2", url: "https://stream.live.vc.bbcmedia.co.uk/bbc_radio_two" }
+  { name: "Kisstory", url: "https://edge-bauerall-01-gos2.sharp-stream.com/kisstory.aac", hls: false },
+  { name: "BBC Radio Leicester", url: "https://as-hls-ww-live.akamaized.net/pool_904/live/ww/bbc_radio_leicester/bbc_radio_leicester.isml/bbc_radio_leicester-audio%3d96000.norewind.m3u8", hls: true },
+  { name: "Capital FM", url: "https://media-ice.musicradio.com/CapitalMP3", hls: false },
+  { name: "BBC Radio 5 Live", url: "https://as-hls-ww-live.akamaized.net/pool_904/live/ww/bbc_radio_five_live/bbc_radio_five_live.isml/bbc_radio_five_live-audio%3d96000.norewind.m3u8", hls: true },
+  { name: "BBC Radio 2", url: "https://as-hls-ww-live.akamaized.net/pool_904/live/ww/bbc_radio_two/bbc_radio_two.isml/bbc_radio_two-audio%3d96000.norewind.m3u8", hls: true }
 ];
 var currentStation = -1;
 var audioEl = document.getElementById("radio-audio");
+var hlsInstance = null;
+
+function stopStream() {
+  if (hlsInstance) {
+    hlsInstance.destroy();
+    hlsInstance = null;
+  }
+  audioEl.pause();
+  audioEl.removeAttribute("src");
+  audioEl.load();
+}
 
 audioEl.onerror = function() {
   if (currentStation !== -1) {
-    document.getElementById("radio-status").innerHTML = "Stream unavailable right now (" + stations[currentStation].name + ")";
+    document.getElementById("radio-status").innerHTML = "Stream unavailable (" + stations[currentStation].name + ")";
     currentStation = -1;
     renderRadio();
   }
@@ -386,28 +399,53 @@ function renderRadio() {
   }
   document.getElementById("radio-grid").innerHTML = html;
 }
+
 function toggleStation(i) {
   var status = document.getElementById("radio-status");
   if (currentStation === i) {
-    audioEl.pause();
-    audioEl.removeAttribute("src");
-    audioEl.load();
+    stopStream();
     currentStation = -1;
     status.innerHTML = "Stopped";
+    renderRadio();
+    return;
+  }
+
+  stopStream();
+  currentStation = i;
+  var st = stations[i];
+  status.innerHTML = "Connecting to " + st.name + "...";
+  renderRadio();
+
+  if (st.hls && window.Hls && Hls.isSupported()) {
+    hlsInstance = new Hls();
+    hlsInstance.loadSource(st.url);
+    hlsInstance.attachMedia(audioEl);
+    hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
+      audioEl.play().then(function() {
+        status.innerHTML = "Playing: " + st.name;
+      }).catch(function(err) {
+        status.innerHTML = "Tap again to start audio (" + err.name + ")";
+      });
+    });
+    hlsInstance.on(Hls.Events.ERROR, function(event, data) {
+      if (data.fatal) {
+        status.innerHTML = "BBC stream blocked or offline";
+        stopStream();
+        currentStation = -1;
+        renderRadio();
+      }
+    });
   } else {
-    currentStation = i;
-    audioEl.src = stations[i].url;
-    status.innerHTML = "Connecting to " + stations[i].name + "...";
+    audioEl.src = st.url;
     var playPromise = audioEl.play();
     if (playPromise !== undefined) {
       playPromise.then(function() {
-        status.innerHTML = "Playing: " + stations[i].name;
+        status.innerHTML = "Playing: " + st.name;
       }).catch(function(err) {
         status.innerHTML = "Tap again to start audio (" + err.name + ")";
       });
     }
   }
-  renderRadio();
 }
 renderRadio();
 
