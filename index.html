@@ -142,11 +142,26 @@
   .radio-card { height: 59%; }
   .radio-grid { display: -webkit-flex; display: flex; -webkit-flex-wrap: wrap; flex-wrap: wrap; }
   .radio-btn {
-    width: 48%; margin: 1%; padding: 8px 6px;
-    background: #0f172a; border: 1px solid #38bdf8; color: #f8fafc;
-    border-radius: 10px; font-size: 14px; font-weight: 600; text-align: center;
+    -webkit-appearance: none; appearance: none;
+    width: 48%; margin: 1%; padding: 9px 6px;
+    border-width: 2px; border-style: solid;
+    border-radius: 10px; font-size: 14px; font-weight: 700; text-align: center;
+    letter-spacing: 0.3px; opacity: 0.92;
+    -webkit-transition: transform 0.1s ease, opacity 0.15s ease;
+    transition: transform 0.1s ease, opacity 0.15s ease;
   }
-  .radio-btn.active { background: #38bdf8; color: #0f172a; }
+  .st-capital  { background-color: #005eb8; color: #ffffff; border-color: #38bdf8; }
+  .st-xtra     { background-color: #111827; color: #22c55e; border-color: #22c55e; }
+  .st-heart    { background-color: #e11d48; color: #ffffff; border-color: #fda4af; }
+  .st-heart90s { background-color: #c026d3; color: #fef08a; border-color: #fef08a; }
+  .st-radiox   { background-color: #18181b; color: #10b981; border-color: #10b981; }
+  .st-smooth   { background-color: #6d28d9; color: #ffffff; border-color: #c4b5fd; }
+
+  .radio-btn.active {
+    opacity: 1;
+    border-color: #ffffff;
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+  }
   .vol-row {
     display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
     margin-top: 6px; background: #0f172a; padding: 6px 12px; border-radius: 10px;
@@ -355,32 +370,52 @@ function fetchCalendar() {
 fetchCalendar();
 setInterval(fetchCalendar, 300000);
 
-// 4. GOOGLE PHOTOS SHARED ALBUM SLIDESHOW (Center Panel - Tap to Skip)
+// 4. GOOGLE PHOTOS SHARED ALBUM SLIDESHOW (True Random Shuffle - Tap to Skip)
 var photoList = [];
 var photoIdx = 0;
 var activeImgLayer = "a";
 
+function shuffleArray(arr) {
+  var copy = arr.slice();
+  for (var i = copy.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = copy[i];
+    copy[i] = copy[j];
+    copy[j] = tmp;
+  }
+  return copy;
+}
+
 function showPhoto(index) {
-  if (photoList.length === 0) return;
-  var url = photoList[index % photoList.length];
+  if (!photoList || photoList.length === 0) return;
+  var safeIdx = ((index % photoList.length) + photoList.length) % photoList.length;
+  var url = photoList[safeIdx];
   var imgA = document.getElementById("photo-a");
   var imgB = document.getElementById("photo-b");
   var incoming = activeImgLayer === "a" ? imgB : imgA;
   var outgoing = activeImgLayer === "a" ? imgA : imgB;
 
   incoming.onload = function() {
-    document.getElementById("photo-empty").style.display = "none";
+    var emptyEl = document.getElementById("photo-empty");
+    if (emptyEl) emptyEl.style.display = "none";
     incoming.className = "photo-slide visible";
     outgoing.className = "photo-slide";
     activeImgLayer = activeImgLayer === "a" ? "b" : "a";
-    document.getElementById("photo-counter").innerHTML = ((index % photoList.length) + 1) + " / " + photoList.length;
+    var counterEl = document.getElementById("photo-counter");
+    if (counterEl) {
+      counterEl.innerHTML = (safeIdx + 1) + " / " + photoList.length;
+    }
   };
   incoming.src = url;
 }
 
 function nextPhoto() {
-  if (photoList.length === 0) return;
-  photoIdx = (photoIdx + 1) % photoList.length;
+  if (!photoList || photoList.length === 0) return;
+  photoIdx++;
+  if (photoIdx >= photoList.length) {
+    photoList = shuffleArray(photoList);
+    photoIdx = 0;
+  }
   showPhoto(photoIdx);
 }
 
@@ -389,18 +424,20 @@ function fetchPhotos() {
   xhr.open("GET", "photos.json?t=" + new Date().getTime(), true);
   xhr.onreadystatechange = function() {
     if (xhr.readyState === 4 && xhr.status === 200) {
-      var data = JSON.parse(xhr.responseText);
-      var list = data.photos || [];
-      if (list.length > 0) {
-        var isFirstLoad = (photoList.length === 0);
-        photoList = list;
-        if (isFirstLoad) {
+      try {
+        var data = JSON.parse(xhr.responseText);
+        var list = data.photos || [];
+        if (list.length > 0) {
+          var isFirstLoad = (photoList.length === 0);
+          photoList = shuffleArray(list);
           photoIdx = 0;
-          showPhoto(0);
+          if (isFirstLoad) {
+            showPhoto(0);
+          }
+        } else {
+          document.getElementById("photo-empty").innerHTML = "No photos found in shared album.";
         }
-      } else {
-        document.getElementById("photo-empty").innerHTML = "No photos found in shared album.";
-      }
+      } catch (e) {}
     }
   };
   xhr.send();
@@ -409,14 +446,14 @@ fetchPhotos();
 setInterval(nextPhoto, 15000);
 setInterval(fetchPhotos, 1800000);
 
-// 5. ALL-INLINE UK RADIO PLAYER + VOLUME SLIDER
+// 5. ALL-INLINE UK RADIO PLAYER + BRAND COLORS + VOLUME SLIDER
 var stations = [
-  { name: "Capital FM", url: "https://media-ice.musicradio.com/CapitalMP3" },
-  { name: "Capital XTRA", url: "https://media-ice.musicradio.com/CapitalXTRANationalMP3" },
-  { name: "Heart UK", url: "https://media-ice.musicradio.com/HeartUKMP3" },
-  { name: "Heart 90s", url: "https://media-ice.musicradio.com/Heart90sMP3" },
-  { name: "Radio X", url: "https://media-ice.musicradio.com/RadioXUKMP3" },
-  { name: "Smooth UK", url: "https://media-ice.musicradio.com/SmoothUKMP3" }
+  { name: "Capital FM",   cls: "st-capital",  url: "https://media-ice.musicradio.com/CapitalMP3" },
+  { name: "Capital XTRA", cls: "st-xtra",     url: "https://media-ice.musicradio.com/CapitalXTRANationalMP3" },
+  { name: "Heart UK",     cls: "st-heart",    url: "https://media-ice.musicradio.com/HeartUKMP3" },
+  { name: "Heart 90s",    cls: "st-heart90s", url: "https://media-ice.musicradio.com/Heart90sMP3" },
+  { name: "Radio X",      cls: "st-radiox",   url: "https://media-ice.musicradio.com/RadioXUKMP3" },
+  { name: "Smooth UK",    cls: "st-smooth",   url: "https://media-ice.musicradio.com/SmoothUKMP3" }
 ];
 var currentStation = -1;
 var audioEl = document.getElementById("radio-audio");
@@ -450,8 +487,10 @@ audioEl.onerror = function() {
 function renderRadio() {
   var html = "";
   for (var i = 0; i < stations.length; i++) {
-    html += '<button class="radio-btn' + (currentStation === i ? ' active' : '') + '" onclick="toggleStation(' + i + ')">' +
-            (currentStation === i ? 'STOP ' : 'PLAY ') + stations[i].name + '</button>';
+    var st = stations[i];
+    var isPlaying = (currentStation === i);
+    html += '<button type="button" class="radio-btn ' + st.cls + (isPlaying ? ' active' : '') + '" onclick="toggleStation(' + i + ')">' +
+            (isPlaying ? '■ ' : '▶ ') + st.name + '</button>';
   }
   document.getElementById("radio-grid").innerHTML = html;
 }
@@ -483,7 +522,7 @@ function toggleStation(i) {
 }
 renderRadio();
 
-// 6. LIVE UK FOOTBALL SCORES TICKER (Today's Fixtures + Next LCFC Fixture + League Position & Points)
+// 6. LIVE UK FOOTBALL SCORES TICKER (Today's Fixtures + Other Competitions + LCFC Pin)
 var ukLeagues = [
   { code: "eng.1", label: "PL", hasTable: true },
   { code: "eng.2", label: "CHAMP", hasTable: true },
@@ -515,9 +554,32 @@ function fmtYMD(d) {
   return d.getFullYear() + ("0" + (d.getMonth() + 1)).slice(-2) + ("0" + d.getDate()).slice(-2);
 }
 
+function formatMatchLine(leagueLabel, ev, home, away, showFullDate) {
+  var state = ev.status && ev.status.type && ev.status.type.state;
+  var detail = (ev.status && ev.status.type && ev.status.type.shortDetail) || "";
+  var hName = (home.team && (home.team.shortDisplayName || home.team.name)) || "Home";
+  var aName = (away.team && (away.team.shortDisplayName || away.team.name)) || "Away";
+  var hScore = (home.score !== undefined && home.score !== null) ? home.score : "";
+  var aScore = (away.score !== undefined && away.score !== null) ? away.score : "";
+
+  var scoreStr = "";
+  if (state === "pre") {
+    var ko = formatUkKickoff(ev.date);
+    var timePart = showFullDate ? ko : (ko ? ko.split(", ")[1] : detail);
+    scoreStr = hName + " v " + aName + '<span class="t-status">(' + timePart + ')</span>';
+  } else if (state === "in") {
+    scoreStr = hName + " " + hScore + "-" + aScore + " " + aName + '<span class="t-live">LIVE ' + detail + '</span>';
+  } else {
+    var datePrefix = showFullDate ? (formatUkKickoff(ev.date).split(", ")[0] + " ") : "";
+    scoreStr = hName + " " + hScore + "-" + aScore + " " + aName + '<span class="t-status">(' + datePrefix + detail + ')</span>';
+  }
+  return '<span class="t-comp">[' + leagueLabel + ']</span>' + scoreStr;
+}
+
 function fetchFootballScores() {
   var favToday = [];
-  var results = [];
+  var todayOther = [];
+  var fallbackFixtures = [];
   var nextLcfcObj = null;
   var lcfcStandingTag = "";
 
@@ -531,8 +593,6 @@ function fetchFootballScores() {
 
   var now = new Date();
   var todayYMD = fmtYMD(now);
-  var futureDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 14);
-  var rangeParam = "?dates=" + todayYMD + "-" + fmtYMD(futureDate);
 
   function finishTicker() {
     var lead = [];
@@ -546,28 +606,29 @@ function fetchFootballScores() {
       lead.push('<span class="t-item t-fav"><span class="t-comp">[LCFC]</span>Leicester City' + lcfcStandingTag + '</span>');
     }
 
-    var allItems = lead.concat(results);
+    var pool = todayOther.length > 0 ? todayOther : fallbackFixtures;
+    var allItems = lead.concat(pool);
     var track = document.getElementById("football-ticker");
     if (allItems.length > 0) {
       track.innerHTML = allItems.join("");
-      var duration = Math.max(30, allItems.length * 6);
+      var duration = Math.max(30, allItems.length * 5);
       track.style.webkitAnimationDuration = duration + "s";
       track.style.animationDuration = duration + "s";
     } else {
-      track.innerHTML = "No scheduled matches across Premier League, Championship, League One, or Domestic Cups today.";
+      track.innerHTML = "No fixtures available right now across Premier League, Championship, League One, or Domestic Cups.";
     }
   }
 
-  // A. Fetch 14-Day Window Across All 5 Competitions (Today's Games + Next LCFC Fixture)
+  // A. Fetch Today's Scoreboard Per League + Default/Upcoming Feed for Next LCFC & Other Matches
   for (var i = 0; i < ukLeagues.length; i++) {
     (function(league) {
-      var xhr = new XMLHttpRequest();
-      xhr.open("GET", "https://site.api.espn.com/apis/site/v2/sports/soccer/" + league.code + "/scoreboard" + rangeParam, true);
-      xhr.onreadystatechange = function() {
-        if (xhr.readyState === 4) {
-          if (xhr.status === 200) {
+      var todayXhr = new XMLHttpRequest();
+      todayXhr.open("GET", "https://site.api.espn.com/apis/site/v2/sports/soccer/" + league.code + "/scoreboard?dates=" + todayYMD, true);
+      todayXhr.onreadystatechange = function() {
+        if (todayXhr.readyState === 4) {
+          if (todayXhr.status === 200) {
             try {
-              var data = JSON.parse(xhr.responseText);
+              var data = JSON.parse(todayXhr.responseText);
               var events = data.events || [];
               for (var j = 0; j < events.length; j++) {
                 var ev = events[j];
@@ -575,51 +636,61 @@ function fetchFootballScores() {
                 if (!comp || !comp.competitors || comp.competitors.length < 2) continue;
                 var home = comp.competitors[0].homeAway === "home" ? comp.competitors[0] : comp.competitors[1];
                 var away = comp.competitors[0].homeAway === "away" ? comp.competitors[0] : comp.competitors[1];
-                var state = ev.status && ev.status.type && ev.status.type.state;
-                var detail = (ev.status && ev.status.type && ev.status.type.shortDetail) || "";
-                var hName = home.team.shortDisplayName || home.team.name;
-                var aName = away.team.shortDisplayName || away.team.name;
-
-                var evDateObj = new Date(ev.date);
-                var isToday = (fmtYMD(evDateObj) === todayYMD);
+                var hName = (home.team && (home.team.shortDisplayName || home.team.name)) || "";
+                var aName = (away.team && (away.team.shortDisplayName || away.team.name)) || "";
                 var isFav = (hName.toLowerCase().indexOf("leicester") !== -1 || aName.toLowerCase().indexOf("leicester") !== -1);
 
-                if (isToday) {
-                  var scoreStr = "";
-                  if (state === "pre") {
-                    var ko = formatUkKickoff(ev.date);
-                    var timePart = ko ? ko.split(", ")[1] : detail;
-                    scoreStr = hName + " v " + aName + '<span class="t-status">(' + timePart + ')</span>';
-                  } else if (state === "in") {
-                    scoreStr = hName + " " + home.score + "-" + away.score + " " + aName + '<span class="t-live">LIVE ' + detail + '</span>';
-                  } else {
-                    scoreStr = hName + " " + home.score + "-" + away.score + " " + aName + '<span class="t-status">(' + detail + ')</span>';
-                  }
-
-                  var innerHtml = '<span class="t-comp">[' + league.label + ']</span>' + scoreStr;
-                  if (isFav) {
-                    favToday.push(innerHtml);
-                  } else {
-                    results.push('<span class="t-item">' + innerHtml + '</span>');
-                  }
-                } else if (isFav && state === "pre") {
-                  var evMs = evDateObj.getTime();
-                  if (!nextLcfcObj || evMs < nextLcfcObj.ms) {
-                    var koStr = formatUkKickoff(ev.date);
-                    nextLcfcObj = {
-                      ms: evMs,
-                      html: '<span class="t-comp">[NEXT ' + league.label + ']</span>' + hName + " v " + aName + '<span class="t-status">(' + koStr + ')</span>'
-                    };
-                  }
+                var line = formatMatchLine(league.label, ev, home, away, false);
+                if (isFav) {
+                  favToday.push(line);
+                } else {
+                  todayOther.push('<span class="t-item">' + line + '</span>');
                 }
               }
             } catch (e) {}
           }
-          completed++;
-          if (completed === totalRequests) finishTicker();
+
+          var defXhr = new XMLHttpRequest();
+          defXhr.open("GET", "https://site.api.espn.com/apis/site/v2/sports/soccer/" + league.code + "/scoreboard", true);
+          defXhr.onreadystatechange = function() {
+            if (defXhr.readyState === 4) {
+              if (defXhr.status === 200) {
+                try {
+                  var dData = JSON.parse(defXhr.responseText);
+                  var dEvents = dData.events || [];
+                  for (var m = 0; m < dEvents.length; m++) {
+                    var dev = dEvents[m];
+                    var dComp = dev.competitions && dev.competitions[0];
+                    if (!dComp || !dComp.competitors || dComp.competitors.length < 2) continue;
+                    var dHome = dComp.competitors[0].homeAway === "home" ? dComp.competitors[0] : dComp.competitors[1];
+                    var dAway = dComp.competitors[0].homeAway === "away" ? dComp.competitors[0] : dComp.competitors[1];
+                    var dhName = (dHome.team && (dHome.team.shortDisplayName || dHome.team.name)) || "";
+                    var daName = (dAway.team && (dAway.team.shortDisplayName || dAway.team.name)) || "";
+                    var dState = dev.status && dev.status.type && dev.status.type.state;
+                    var isFavMatch = (dhName.toLowerCase().indexOf("leicester") !== -1 || daName.toLowerCase().indexOf("leicester") !== -1);
+
+                    if (isFavMatch && dState === "pre") {
+                      var evMs = new Date(dev.date).getTime();
+                      if (!isNaN(evMs) && (!nextLcfcObj || evMs < nextLcfcObj.ms)) {
+                        nextLcfcObj = {
+                          ms: evMs,
+                          html: formatMatchLine("NEXT " + league.label, dev, dHome, dAway, true)
+                        };
+                      }
+                    } else if (!isFavMatch && fallbackFixtures.length < 18) {
+                      fallbackFixtures.push('<span class="t-item">' + formatMatchLine(league.label, dev, dHome, dAway, true) + '</span>');
+                    }
+                  }
+                } catch (e) {}
+              }
+              completed++;
+              if (completed === totalRequests) finishTicker();
+            }
+          };
+          defXhr.send();
         }
       };
-      xhr.send();
+      todayXhr.send();
     })(ukLeagues[i]);
   }
 
@@ -627,7 +698,7 @@ function fetchFootballScores() {
   for (var k = 0; k < tableLeagues.length; k++) {
     (function(league) {
       var sXhr = new XMLHttpRequest();
-      sXhr.open("GET", "https://site.api.espn.com/apis/v2/sports/soccer/" + league.code + "/standings", true);
+      sXhr.open("GET", "https://site.api.espn.com/apis/site/v2/sports/soccer/" + league.code + "/standings", true);
       sXhr.onreadystatechange = function() {
         if (sXhr.readyState === 4) {
           if (sXhr.status === 200) {
