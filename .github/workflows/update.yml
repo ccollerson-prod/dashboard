@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch Private Calendar & Build events.json
+      - name: Fetch Private Calendar & BBC News Headlines
         env:
           ICAL_URL: ${{ secrets.ICAL_URL }}
         run: |
@@ -26,9 +26,10 @@ jobs:
           cp index.html public/index.html
           date -u +"%Y-%m-%dT%H:%M:%SZ" > public/version.txt
           python3 - << 'EOF'
-          import os, urllib.request, json, re
+          import os, urllib.request, json, re, xml.etree.ElementTree as ET
           from datetime import datetime, timezone
 
+          # 1. Fetch Private Calendar
           url = os.environ.get("ICAL_URL", "")
           events = []
           if url:
@@ -45,6 +46,21 @@ jobs:
                       })
           with open("public/events.json", "w") as f:
               json.dump({"updated": datetime.now(timezone.utc).isoformat(), "events": events}, f)
+
+          # 2. Fetch BBC News UK Headlines
+          headlines = []
+          try:
+              req = urllib.request.Request("https://feeds.bbci.co.uk/news/uk/rss.xml", headers={"User-Agent": "Mozilla/5.0"})
+              xml_data = urllib.request.urlopen(req, timeout=20).read()
+              root = ET.fromstring(xml_data)
+              for item in root.findall(".//item")[:8]:
+                  title_el = item.find("title")
+                  if title_el is not None and title_el.text:
+                      headlines.append(title_el.text.strip())
+          except Exception as e:
+              headlines = ["Unable to load BBC News headlines right now."]
+          with open("public/news.json", "w") as f:
+              json.dump({"updated": datetime.now(timezone.utc).isoformat(), "headlines": headlines}, f)
           EOF
 
       - uses: actions/upload-pages-artifact@v4
