@@ -380,7 +380,7 @@ function fetchWeather() {
 fetchWeather();
 setInterval(fetchWeather, 1800000);
 
-// 3. FAMILY CALENDAR (7-DAY ROLLING VIEW)
+// 3. FAMILY CALENDAR (14-DAY ROLLING VIEW)
 function parseIcalDate(str) {
   var y = parseInt(str.substr(0, 4), 10);
   var mo = parseInt(str.substr(4, 2), 10) - 1;
@@ -404,7 +404,7 @@ function fetchCalendar() {
       var data = JSON.parse(xhr.responseText);
       var now = new Date();
       var startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      var endOfSevenDays = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7);
+      var endOfFourteenDays = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 14);
       var dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
       var monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -413,7 +413,7 @@ function fetchCalendar() {
         var ev = data.events[i];
         var parsed = parseIcalDate(ev.start);
         var evDayZero = new Date(parsed.date.getFullYear(), parsed.date.getMonth(), parsed.date.getDate());
-        if (evDayZero >= startOfToday && evDayZero < endOfSevenDays) {
+        if (evDayZero >= startOfToday && evDayZero < endOfFourteenDays) {
           var diffDays = Math.round((evDayZero - startOfToday) / 86400000);
           items.push({
             title: ev.title,
@@ -427,7 +427,7 @@ function fetchCalendar() {
 
       var box = document.getElementById("cal-list");
       if (items.length === 0) {
-        box.innerHTML = '<div style="color:#94a3b8;font-size:15px;">No events in next 7 days.</div>';
+        box.innerHTML = '<div style="color:#94a3b8;font-size:15px;">No events in next 14 days.</div>';
         return;
       }
       var html = "";
