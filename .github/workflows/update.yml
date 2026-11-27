@@ -25,17 +25,17 @@ jobs:
       - name: Install dependencies
         run: pip install requests icalendar recurring-ical-events
 
-      - name: Fetch Private Calendar, iCloud Photos & Build PWA Assets
+      - name: Fetch Private Calendar, Google Photos & Build PWA Assets
         env:
           ICAL_URL: ${{ secrets.ICAL_URL }}
-          ICLOUD_ALBUM_TOKEN: ${{ secrets.ICLOUD_ALBUM_TOKEN }}
+          PHOTOS_URL: ${{ secrets.PHOTOS_URL }}
         run: |
           mkdir -p public
           cp index.html public/index.html
           cp manifest.json public/manifest.json
           cp sw.js public/sw.js
           python - << 'EOF'
-          import os, json, re, zlib, struct, requests
+          import os, re, json, zlib, struct, requests
           from datetime import datetime, timedelta, timezone
           from icalendar import Calendar
           import recurring_ical_events
@@ -66,7 +66,7 @@ jobs:
           make_png("public/icon-512.png", 512, 512)
           make_png("public/icon-192.png", 192, 192)
 
-          # 1. Fetch & expand recurring events for the next 14 days
+          # 1. Fetch & expand recurring events for the next 30 days
           ical_url = os.environ.get("ICAL_URL", "").strip()
           events_out = []
           if ical_url:
@@ -75,7 +75,7 @@ jobs:
               cal = Calendar.from_ical(r.text)
               now = datetime.now(timezone.utc)
               start = now - timedelta(days=1)
-              end = now + timedelta(days=14)
+              end = now + timedelta(days=30)
               expanded = recurring_ical_events.of(cal).between(start, end)
               for component in expanded:
                   summary = str(component.get("SUMMARY", "Busy"))
@@ -96,36 +96,33 @@ jobs:
               json.dump({"updated": datetime.now(timezone.utc).isoformat(), "events": events_out}, f)
           print(f"Saved {len(events_out)} calendar events.")
 
-          # 2. Fetch up to 200 image URLs from Apple iCloud Shared Album URL / token
-          raw_val = os.environ.get("ICLOUD_ALBUM_TOKEN", "").strip()
+          # 2. Fetch Google Photos shared album image URLs from PHOTOS_URL (up to 200)
+          photos_url = os.environ.get("PHOTOS_URL", "").strip()
           photos = []
-          if raw_val:
-              if raw_val.startswith("http"):
-                  album_page_url = raw_val.split("#")[0]
-              else:
-                  album_page_url = f"https://photos.icloud.com/shared/album/{raw_val}"
-
+          seen = set()
+          if photos_url:
               headers = {
-                  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
               }
-              resp = requests.get(album_page_url, headers=headers, timeout=30, allow_redirects=True)
-              print(f"iCloud page status: {resp.status_code}, length: {len(resp.text)}")
-              resp.raise_for_status()
-
-              cleaned = resp.text.replace("\\u002F", "/").replace("\\/", "/").replace("\\u003D", "=")
-              candidates = re.findall(r'https://[a-zA-Z0-9.\-]+/[^\s"\'<>\\]+', cleaned)
-              seen = set()
-              for c in candidates:
-                  low = c.lower()
-                  if any(ext in low for ext in [".jpg", ".jpeg", ".png", ".webp"]) and "apple.com" not in low and "icloud.com/assets" not in low:
-                      clean_url = c.rstrip("\\")
-                      if clean_url not in seen:
-                          seen.add(clean_url)
-                          photos.append(clean_url)
+              gr = requests.get(photos_url, headers=headers, timeout=30, allow_redirects=True)
+              print(f"Google Photos status: {gr.status_code}, final URL: {gr.url}, length: {len(gr.text)}")
+              if gr.status_code == 200:
+                  unescaped = gr.text.replace("\\u003d", "=").replace("\\/", "/")
+                  raw_matches = re.findall(r'https://lh3\.googleusercontent\.com/[A-Za-z0-9_\-/=]+', unescaped)
+                  for m in raw_matches:
+                      size_m = re.search(r'[=-]s(\d+)', m)
+                      if size_m and int(size_m.group(1)) < 250:
+                          continue
+                      base = m.split("=")[0] + "=w1600-h1200"
+                      if base not in seen:
+                          seen.add(base)
+                          photos.append(base)
+                          if len(photos) >= 200:
+                              break
 
           with open("public/photos.json", "w") as f:
-              json.dump({"updated": datetime.now(timezone.utc).isoformat(), "photos": photos[:200]}, f)
-          print(f"Fetched {len(photos[:200])} photos from iCloud album.")
+              json.dump({"updated": datetime.now(timezone.utc).isoformat(), "photos": photos}, f)
+          print(f"Fetched {len(photos)} photos from Google Photos album.")
           EOF
 
       - name: Write version timestamp
