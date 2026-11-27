@@ -240,10 +240,10 @@
     color: #94a3b8; font-size: 16px; text-align: center; width: 85%;
   }
 
-  /* Right Column: Spotify + Radio */
+  /* Right Column: YouTube + Radio */
   .spotify-card {
     height: 41%; margin-bottom: 14px; padding: 0;
-    background: #121212; border-radius: 16px; overflow: hidden;
+    background: #090d16; border-radius: 16px; overflow: hidden;
   }
   .spotify-card iframe {
     width: 100%; height: 100%; border: 0; border-radius: 16px;
@@ -378,7 +378,7 @@
 
     <div class="w-right">
       <div class="card spotify-card">
-        <iframe src="https://open.spotify.com/embed/playlist/4x1dKEgbLtklSMf5nTMXs5?utm_source=generator&theme=0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+        <iframe src="https://www.youtube-nocookie.com/embed/videoseries?list=RDCLAK5uy_nBQm8_YpP--R6zU8p3dypKm1QKqzWY6qU&rel=0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
       </div>
       <div class="card radio-card">
         <h2>UK Radio Player</h2>
@@ -462,7 +462,7 @@ setInterval(fetchWeather, 1800000);
 // 3. FAMILY CALENDAR (SLIDER RANGE + FULL MONTH VIEW)
 var rawCalendarEvents = [];
 var calRangeDays = parseInt(localStorage.getItem("cal_range_days") || "14", 10);
-var calViewMode = "list"; // "list" or "month"
+var calViewMode = "list";
 var calMonthOffset = 0;
 var selectedMonthDateKey = null;
 
@@ -593,7 +593,6 @@ function renderCalendar() {
     return;
   }
 
-  // Full Month Grid View
   var target = new Date(now.getFullYear(), now.getMonth() + calMonthOffset, 1);
   var yr = target.getFullYear();
   var mo = target.getMonth();
@@ -607,7 +606,7 @@ function renderCalendar() {
     eventsByKey[key].push(eObj);
   }
 
-  var firstDow = (target.getDay() + 6) % 7; // Monday = 0
+  var firstDow = (target.getDay() + 6) % 7;
   var daysInMonth = new Date(yr, mo + 1, 0).getDate();
   var todayKey = dateKey(now);
 
@@ -677,7 +676,7 @@ function fetchCalendar() {
 fetchCalendar();
 setInterval(fetchCalendar, 300000);
 
-// 3B. INTERACTIVE SHOPPING LIST (SAVED LOCALLY + QUICK COPY FOR APPLE NOTES)
+// 3B. INTERACTIVE SHOPPING LIST
 var SHOP_STORAGE_KEY = "family_dashboard_shopping_v1";
 var shoppingItems = [];
 
@@ -781,7 +780,7 @@ function copyShoppingList() {
 }
 loadShoppingItems();
 
-// 4. SHARED ALBUM SLIDESHOW (True Random Shuffle - Tap to Skip)
+// 4. SHARED ALBUM SLIDESHOW
 var photoList = [];
 var photoIdx = 0;
 var activeImgLayer = "a";
@@ -857,7 +856,7 @@ fetchPhotos();
 setInterval(nextPhoto, 15000);
 setInterval(fetchPhotos, 1800000);
 
-// 5. ALL-INLINE UK RADIO PLAYER + BRAND COLORS + VOLUME SLIDER
+// 5. ALL-INLINE UK RADIO PLAYER
 var stations = [
   { name: "Capital FM",   cls: "st-capital",  url: "https://media-ice.musicradio.com/CapitalMP3" },
   { name: "Capital XTRA", cls: "st-xtra",     url: "https://media-ice.musicradio.com/CapitalXTRANationalMP3" },
@@ -933,7 +932,7 @@ function toggleStation(i) {
 }
 renderRadio();
 
-// 6. LIVE UK FOOTBALL SCORES TICKER (Today's Fixtures + Other Competitions + LCFC Pin + Goalscorers)
+// 6. LIVE UK FOOTBALL SCORES TICKER
 var ukLeagues = [
   { code: "eng.1", label: "PL", hasTable: true },
   { code: "eng.2", label: "CHAMP", hasTable: true },
