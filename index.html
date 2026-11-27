@@ -78,8 +78,8 @@
     width: 33%; display: -webkit-flex; display: flex;
     -webkit-flex-direction: column; flex-direction: column;
   }
-  .cal-card { height: 47%; margin-bottom: 12px; }
-  .shop-card { height: 53%; }
+  .cal-card { height: 50%; margin-bottom: 12px; }
+  .shop-card { height: 50%; }
 
   .w-photos { width: 35%; padding: 0; position: relative; background: #0f172a; }
   .w-right { width: 32%; display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column; }
@@ -115,6 +115,66 @@
   .cal-time { font-size: 12px; color: #94a3b8; font-weight: 600; }
   .cal-title { font-size: 15px; color: #f8fafc; margin-top: 1px; }
 
+  /* Calendar Controls: Range Slider & Full Month View */
+  .cal-controls {
+    display: -webkit-flex; display: flex;
+    -webkit-align-items: center; align-items: center;
+    gap: 8px; margin-bottom: 8px;
+    background: #0f172a; padding: 5px 9px; border-radius: 8px;
+  }
+  #cal-range-slider {
+    -webkit-flex: 1; flex: 1; height: 6px; border-radius: 4px;
+    background: #334155; outline: none; -webkit-appearance: none;
+  }
+  #cal-range-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #38bdf8; cursor: pointer;
+  }
+  .cal-range-tag {
+    font-size: 11px; font-weight: 700; color: #38bdf8; min-width: 48px; text-align: right;
+  }
+  .month-nav {
+    display: none; -webkit-flex: 1; flex: 1;
+    -webkit-align-items: center; align-items: center;
+    -webkit-justify-content: space-between; justify-content: space-between;
+  }
+  .month-label {
+    font-size: 12px; font-weight: 700; color: #f8fafc;
+  }
+  .month-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px;
+    text-align: center;
+  }
+  .m-dow {
+    font-size: 10px; font-weight: 700; color: #64748b; padding-bottom: 2px;
+  }
+  .m-cell {
+    background: #0f172a; border-radius: 5px; padding: 3px 1px;
+    font-size: 11px; color: #cbd5e1; position: relative; min-height: 24px;
+    border: 1px solid transparent; cursor: pointer;
+  }
+  .m-cell.empty {
+    background: transparent; cursor: default;
+  }
+  .m-cell.today {
+    border-color: #38bdf8; color: #38bdf8; font-weight: 800;
+  }
+  .m-cell.has-event {
+    background: rgba(52, 211, 153, 0.16); color: #f8fafc; font-weight: 700;
+  }
+  .m-cell.selected {
+    border-color: #fbbf24; background: rgba(251, 191, 36, 0.18);
+  }
+  .m-dot {
+    display: block; width: 4px; height: 4px; border-radius: 50%;
+    background: #34d399; margin: 1px auto 0 auto;
+  }
+  .month-detail {
+    margin-top: 6px; font-size: 12px; color: #cbd5e1;
+    background: #0f172a; border-radius: 6px; padding: 5px 8px;
+  }
+
   /* Shopping List Card */
   .shop-actions-inline {
     display: -webkit-inline-flex; display: inline-flex; gap: 6px;
@@ -122,7 +182,10 @@
   .mini-btn {
     background: #0f172a; color: #cbd5e1; border: 1px solid #475569;
     border-radius: 6px; padding: 2px 7px; font-size: 11px; font-weight: 700;
-    text-transform: none; letter-spacing: 0;
+    text-transform: none; letter-spacing: 0; cursor: pointer;
+  }
+  .mini-btn.active {
+    background: #38bdf8; color: #0f172a; border-color: #38bdf8;
   }
   .shop-form {
     display: -webkit-flex; display: flex; gap: 6px; margin-bottom: 8px;
@@ -272,9 +335,22 @@
   <div class="bottom-row">
     <div class="mr w-left">
       <div class="card cal-card">
-        <h2>Calendar (14 Days)</h2>
+        <h2>
+          <span id="cal-heading">Calendar (14 Days)</span>
+          <button type="button" class="mini-btn" id="cal-view-btn" onclick="toggleCalendarMode()">Full Month</button>
+        </h2>
+        <div class="cal-controls">
+          <input type="range" id="cal-range-slider" min="7" max="30" value="14" oninput="onCalRangeChange(this.value)" onchange="onCalRangeChange(this.value)">
+          <span class="cal-range-tag" id="cal-range-label">14 days</span>
+          <div class="month-nav" id="month-nav">
+            <button type="button" class="mini-btn" onclick="shiftMonth(-1)">◀</button>
+            <span class="month-label" id="month-title">Month</span>
+            <button type="button" class="mini-btn" onclick="shiftMonth(1)">▶</button>
+          </div>
+        </div>
         <div class="list-scroll" id="cal-list">Loading events...</div>
       </div>
+
       <div class="card shop-card">
         <h2>
           <span>Shopping List</span>
@@ -383,7 +459,20 @@ function fetchWeather() {
 fetchWeather();
 setInterval(fetchWeather, 1800000);
 
-// 3. FAMILY CALENDAR (14-DAY ROLLING VIEW)
+// 3. FAMILY CALENDAR (SLIDER RANGE + FULL MONTH VIEW)
+var rawCalendarEvents = [];
+var calRangeDays = parseInt(localStorage.getItem("cal_range_days") || "14", 10);
+var calViewMode = "list"; // "list" or "month"
+var calMonthOffset = 0;
+var selectedMonthDateKey = null;
+
+var sliderInit = document.getElementById("cal-range-slider");
+if (sliderInit) {
+  sliderInit.value = calRangeDays;
+  document.getElementById("cal-range-label").innerHTML = calRangeDays + " days";
+  document.getElementById("cal-heading").innerHTML = "Calendar (" + calRangeDays + " Days)";
+}
+
 function parseIcalDate(str) {
   var y = parseInt(str.substr(0, 4), 10);
   var mo = parseInt(str.substr(4, 2), 10) - 1;
@@ -399,58 +488,188 @@ function parseIcalDate(str) {
   return { date: new Date(y, mo, d), allDay: true };
 }
 
+function dateKey(d) {
+  return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+}
+
+function onCalRangeChange(val) {
+  calRangeDays = parseInt(val, 10);
+  localStorage.setItem("cal_range_days", calRangeDays);
+  document.getElementById("cal-range-label").innerHTML = calRangeDays + " days";
+  if (calViewMode === "list") {
+    document.getElementById("cal-heading").innerHTML = "Calendar (" + calRangeDays + " Days)";
+    renderCalendar();
+  }
+}
+
+function toggleCalendarMode() {
+  calViewMode = (calViewMode === "list") ? "month" : "list";
+  var btn = document.getElementById("cal-view-btn");
+  var slider = document.getElementById("cal-range-slider");
+  var rangeTag = document.getElementById("cal-range-label");
+  var monthNav = document.getElementById("month-nav");
+
+  if (calViewMode === "month") {
+    calMonthOffset = 0;
+    selectedMonthDateKey = dateKey(new Date());
+    btn.innerHTML = "List View";
+    btn.className = "mini-btn active";
+    slider.style.display = "none";
+    rangeTag.style.display = "none";
+    monthNav.style.display = "-webkit-flex";
+    monthNav.style.display = "flex";
+    document.getElementById("cal-heading").innerHTML = "Calendar (Month)";
+  } else {
+    btn.innerHTML = "Full Month";
+    btn.className = "mini-btn";
+    slider.style.display = "block";
+    rangeTag.style.display = "inline";
+    monthNav.style.display = "none";
+    document.getElementById("cal-heading").innerHTML = "Calendar (" + calRangeDays + " Days)";
+  }
+  renderCalendar();
+}
+
+function shiftMonth(delta) {
+  calMonthOffset += delta;
+  selectedMonthDateKey = null;
+  renderCalendar();
+}
+
+function selectMonthDay(key) {
+  selectedMonthDateKey = key;
+  renderCalendar();
+}
+
+function renderCalendar() {
+  var box = document.getElementById("cal-list");
+  if (!box) return;
+  var now = new Date();
+  var startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  var dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  var monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  var fullMonths = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+  if (calViewMode === "list") {
+    var endOfWindow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + calRangeDays);
+    var items = [];
+    for (var i = 0; i < rawCalendarEvents.length; i++) {
+      var ev = rawCalendarEvents[i];
+      var evDayZero = new Date(ev.date.getFullYear(), ev.date.getMonth(), ev.date.getDate());
+      if (evDayZero >= startOfToday && evDayZero < endOfWindow) {
+        var diffDays = Math.round((evDayZero - startOfToday) / 86400000);
+        items.push({
+          title: ev.title,
+          date: ev.date,
+          allDay: ev.allDay,
+          diffDays: diffDays
+        });
+      }
+    }
+    items.sort(function(a, b) { return a.date - b.date; });
+
+    if (items.length === 0) {
+      box.innerHTML = '<div style="color:#94a3b8;font-size:14px;">No events in next ' + calRangeDays + ' days.</div>';
+      return;
+    }
+    var html = "";
+    for (var j = 0; j < items.length; j++) {
+      var it = items[j];
+      var dayLabel = "";
+      var cls = "cal-item";
+      if (it.diffDays === 0) {
+        dayLabel = "Today";
+      } else if (it.diffDays === 1) {
+        dayLabel = "Tomorrow";
+        cls += " tomorrow";
+      } else {
+        dayLabel = dayNames[it.date.getDay()] + " " + it.date.getDate() + " " + monthNames[it.date.getMonth()];
+        cls += " upcoming";
+      }
+      var timeTxt = it.allDay ? "All Day" : (("0" + it.date.getHours()).slice(-2) + ":" + ("0" + it.date.getMinutes()).slice(-2));
+      html += '<div class="' + cls + '"><div class="cal-time">' + dayLabel + ' - ' + timeTxt + '</div><div class="cal-title">' + escapeHtml(it.title) + '</div></div>';
+    }
+    box.innerHTML = html;
+    return;
+  }
+
+  // Full Month Grid View
+  var target = new Date(now.getFullYear(), now.getMonth() + calMonthOffset, 1);
+  var yr = target.getFullYear();
+  var mo = target.getMonth();
+  document.getElementById("month-title").innerHTML = fullMonths[mo] + " " + yr;
+
+  var eventsByKey = {};
+  for (var k = 0; k < rawCalendarEvents.length; k++) {
+    var eObj = rawCalendarEvents[k];
+    var key = dateKey(eObj.date);
+    if (!eventsByKey[key]) eventsByKey[key] = [];
+    eventsByKey[key].push(eObj);
+  }
+
+  var firstDow = (target.getDay() + 6) % 7; // Monday = 0
+  var daysInMonth = new Date(yr, mo + 1, 0).getDate();
+  var todayKey = dateKey(now);
+
+  var gridHtml = '<div class="month-grid">' +
+    '<div class="m-dow">M</div><div class="m-dow">T</div><div class="m-dow">W</div>' +
+    '<div class="m-dow">T</div><div class="m-dow">F</div><div class="m-dow">S</div><div class="m-dow">S</div>';
+
+  for (var b = 0; b < firstDow; b++) {
+    gridHtml += '<div class="m-cell empty"></div>';
+  }
+  for (var d = 1; d <= daysInMonth; d++) {
+    var cellDate = new Date(yr, mo, d);
+    var cKey = dateKey(cellDate);
+    var dayEvents = eventsByKey[cKey] || [];
+    var cCls = "m-cell";
+    if (cKey === todayKey) cCls += " today";
+    if (dayEvents.length > 0) cCls += " has-event";
+    if (cKey === selectedMonthDateKey) cCls += " selected";
+    gridHtml += '<div class="' + cCls + '" onclick="selectMonthDay(\'' + cKey + '\')">' + d +
+                (dayEvents.length > 0 ? '<span class="m-dot"></span>' : '') + '</div>';
+  }
+  gridHtml += '</div>';
+
+  var detailHtml = "";
+  if (selectedMonthDateKey) {
+    var selEvents = eventsByKey[selectedMonthDateKey] || [];
+    if (selEvents.length > 0) {
+      var lines = [];
+      for (var s = 0; s < selEvents.length; s++) {
+        var se = selEvents[s];
+        var tStr = se.allDay ? "All Day" : (("0" + se.date.getHours()).slice(-2) + ":" + ("0" + se.date.getMinutes()).slice(-2));
+        lines.push('<strong>' + tStr + '</strong> ' + escapeHtml(se.title));
+      }
+      detailHtml = '<div class="month-detail">' + lines.join("<br>") + '</div>';
+    } else {
+      detailHtml = '<div class="month-detail" style="color:#64748b;">No events on selected day.</div>';
+    }
+  }
+  box.innerHTML = gridHtml + detailHtml;
+}
+
 function fetchCalendar() {
   var xhr = new XMLHttpRequest();
   xhr.open("GET", "events.json?t=" + new Date().getTime(), true);
   xhr.onreadystatechange = function() {
     if (xhr.readyState === 4 && xhr.status === 200) {
-      var data = JSON.parse(xhr.responseText);
-      var now = new Date();
-      var startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      var endOfFourteenDays = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 14);
-      var dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-      var monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-
-      var items = [];
-      for (var i = 0; i < data.events.length; i++) {
-        var ev = data.events[i];
-        var parsed = parseIcalDate(ev.start);
-        var evDayZero = new Date(parsed.date.getFullYear(), parsed.date.getMonth(), parsed.date.getDate());
-        if (evDayZero >= startOfToday && evDayZero < endOfFourteenDays) {
-          var diffDays = Math.round((evDayZero - startOfToday) / 86400000);
-          items.push({
+      try {
+        var data = JSON.parse(xhr.responseText);
+        var parsedList = [];
+        var list = data.events || [];
+        for (var i = 0; i < list.length; i++) {
+          var ev = list[i];
+          var parsed = parseIcalDate(ev.start);
+          parsedList.push({
             title: ev.title,
             date: parsed.date,
-            allDay: parsed.allDay,
-            diffDays: diffDays
+            allDay: parsed.allDay
           });
         }
-      }
-      items.sort(function(a, b) { return a.date - b.date; });
-
-      var box = document.getElementById("cal-list");
-      if (items.length === 0) {
-        box.innerHTML = '<div style="color:#94a3b8;font-size:15px;">No events in next 14 days.</div>';
-        return;
-      }
-      var html = "";
-      for (var j = 0; j < items.length; j++) {
-        var it = items[j];
-        var dayLabel = "";
-        var cls = "cal-item";
-        if (it.diffDays === 0) {
-          dayLabel = "Today";
-        } else if (it.diffDays === 1) {
-          dayLabel = "Tomorrow";
-          cls += " tomorrow";
-        } else {
-          dayLabel = dayNames[it.date.getDay()] + " " + it.date.getDate() + " " + monthNames[it.date.getMonth()];
-          cls += " upcoming";
-        }
-        var timeTxt = it.allDay ? "All Day" : (("0" + it.date.getHours()).slice(-2) + ":" + ("0" + it.date.getMinutes()).slice(-2));
-        html += '<div class="' + cls + '"><div class="cal-time">' + dayLabel + ' - ' + timeTxt + '</div><div class="cal-title">' + it.title + '</div></div>';
-      }
-      box.innerHTML = html;
+        rawCalendarEvents = parsedList;
+        renderCalendar();
+      } catch (e) {}
     }
   };
   xhr.send();
@@ -714,7 +933,7 @@ function toggleStation(i) {
 }
 renderRadio();
 
-// 6. LIVE UK FOOTBALL SCORES TICKER (Today's Fixtures + Other Competitions + LCFC Pin)
+// 6. LIVE UK FOOTBALL SCORES TICKER (Today's Fixtures + Other Competitions + LCFC Pin + Goalscorers)
 var ukLeagues = [
   { code: "eng.1", label: "PL", hasTable: true },
   { code: "eng.2", label: "CHAMP", hasTable: true },
